@@ -416,10 +416,10 @@ CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 							}
 						}
 
-	if (count > 0)
+	/*if (count > 0)
 	{
 		printf("number of edge-like keypoints is %d\n", count);
-	}
+	}*/
 	
 
 	for (i=0;  !pq_features.empty(); ++i) {
@@ -1332,18 +1332,3 @@ void release_pyr( IplImage**** pyr, int octvs, int n )
 	*pyr = NULL;
 }
 
-void FuncInDll (void)
-
-{
-	int kll = 1234;
-	fprintf( stderr, "FuncInDll is called! \n" );
-	TTRR(kll);
-
-}
-
-
-void TTRR (int kl)
-
-{
-	fprintf( stderr, "TTRR is called!%d \n %d",kkll,85 );
-}

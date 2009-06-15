@@ -58,6 +58,8 @@ int nFileIndex = 0; // the index of files if the result saved in several files
 FILE* outfile = 0;	// the FILE of the result
 char outfileName[256] = {'\0'};	// the result file name
 
+extern float eigs[PCASIZE][FEATURE_MAX_D];
+
 // one point = long long+int+double(4)+double(128) = 1036 bytes.
 // the file should be less than 2G, so a file should contain less than 2072860 points.
 // the file may contains some other information about the data, so the limit of points is set as 2000000.
@@ -68,6 +70,34 @@ int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl,
 void saveOneImageFeatures(struct feature* pfeatures, int n, long long id);
 void saveAndCloseOutFileHeader();
 void initParameter(const char* out_file_name);
+
+extern "C" DLL_EXPORT void initialeigs(const char* eigsfile)
+{
+	FILE * pcaf = fopen(eigsfile, "rb"); 
+	int ii,jj; 
+	//if( eigstest == NULL){
+	//	eigstest = calloc( PCASIZE, sizeof( float* ) );
+	//	for( i = 0; i < PCASIZE; i++ )
+	//	{
+	//		eigstest[i] = calloc( FEATURE_MAX_D, sizeof( float ) );
+	//	}
+	//}
+	for (ii = 0; ii < FEATURE_MAX_D; ii++) {
+		for (jj = 0; jj < PCASIZE; jj++) {
+
+			float val;
+			if (fscanf(pcaf, "%g", &val) != 1) {
+				printf("Invalid pca vector file (eig).\n");
+				exit(1);
+			}                       
+			if (jj < PCASIZE)
+				eigs[jj][ii] = val;
+		}
+	}
+
+	printf("initialeigs \n");
+	fclose(pcaf);
+}
 
 /**
  * This interface provides SIFT algorithm implementation. Returns number of files to be sifted if success, -1 if fail.

@@ -135,7 +135,16 @@ void testSift()
 
 double calcDistance(feature* fp1, feature* fp2)
 {
-	return sqrt((double)inner_product(fp1->descr, fp1->descr+dim, fp2->descr, 0, plus<double>(), minuspower<double>()));
+	//return sqrt((double)inner_product(fp1->PCAdescr, fp1->PCAdescr+dim, fp2->PCAdescr, 0, plus<double>(), minuspower<double>()));
+	double sum = 0.0;
+	double t = 0.0;
+	for (int i=0; i<dim; ++i)
+	{
+		t = fp1->PCAdescr[i] - fp2->PCAdescr[i];
+		sum += t * t;
+	}
+
+	return sqrt(sum);
 }
 
 void printMatchPair(FILE* fp, const feature& f1, const feature& f21, const feature& f22, double dist1, double dist2, int i)
@@ -166,11 +175,12 @@ void drawMatchLines(IplImage* img, const CvSize& size1, feature* fp1, feature* f
 		map<double, feature*> mt;
 		for (int j=0; j<n2; ++j)
 		{
-			mt[calcDistance(&fp1[i], &fp2[j])] =  &fp2[j];
+			double dist = calcDistance(&fp1[i], &fp2[j]);
+			mt[dist] =  &fp2[j];
 		}
 
-		map<double, feature*>::iterator it = mt.begin();
-		map<double, feature*>::iterator it2 = it;
+		map<double, feature*>::const_iterator it = mt.begin();
+		map<double, feature*>::const_iterator it2 = mt.begin();
 		it2++;
 		printMatchPair(fp, fp1[i], *(it->second), *(it2->second), it->first, it2->first, i);
 
@@ -197,10 +207,10 @@ void drawMatchLines(IplImage* img, const CvSize& size1, feature* fp1, feature* f
 
 void showSiftResult(IplImage* img1, IplImage* img2, feature* fp1, feature* fp2, int n1, int n2)
 {
-	//cvNamedWindow("sift");
-	//cvNamedWindow("sift2");
 	if (!hideMerged)
 	{
+		cvNamedWindow("sift");
+		cvNamedWindow("sift2");
 		cvNamedWindow("siftMerge");
 	}
 	
@@ -218,6 +228,11 @@ void showSiftResult(IplImage* img1, IplImage* img2, feature* fp1, feature* fp2, 
 	draw_features(siftImg2, fp2, n2);
 
 	IplImage* mergeImg = mergeImages(siftImg1, siftImg2);
+	if (!hideMerged)
+	{
+		cvShowImage("sift", siftImg1);
+		cvShowImage("sift2", siftImg2);
+	}
 
 	// draw matched lines
 	drawMatchLines(mergeImg, size1, fp1, fp2, n1, n2);
@@ -240,6 +255,7 @@ void showSiftResult(IplImage* img1, IplImage* img2, feature* fp1, feature* fp2, 
 
 void testSiftMatch()
 {
+	initialeigs("gpcavects_eig.txt");
 	struct feature* fp = 0;
 	int n = siftFeature(imgName.c_str(), &fp, 1, 0.04, 4000);
 	struct feature* fp2 = 0;

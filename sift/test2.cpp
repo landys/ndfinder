@@ -8,7 +8,7 @@
 using namespace std;
 namespace po = boost::program_options; 
 
-void printKeypoints();
+void printKeypoints(bool lessLog);
 
 //string BaseDir = "E:\\testsift\\mm270k\\";
 string ImgsFile;// = BaseDir + "mm270k.txt";
@@ -24,42 +24,53 @@ int main(int argc, char* argv[])
 	int doubleImg;
 	double contrThr;
 	int maxNkps;
+	int lessLog;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message.")
 		("imgs,i", po::value<string>(&ImgsFile), "image list file.")
-		("rawsift,r", po::value<string>(&SiftBinFile), "raw sift result data in binary format.")
+		("rawsift,r", po::value<string>(&SiftBinFile), "raw sift result data in binary format. If imgs not provided, it is the input raw sift data file.")
 		("siftdata,d", po::value<string>(&SiftDataFile), "sift data for index.")
 		("ids,s", po::value<string>(&SiftIdsFile), "Inverse index of id and files, also position/scale/orientation.")
 		("log,l", po::value<string>(&SiftLogFile), "sift log file.")
 		("double,b", po::value<int>(&doubleImg)->default_value(1), "Double image before sift.")
 		("contr,c", po::value<double>(&contrThr)->default_value(0.03), "low contract threshold.")
-		("max,m", po::value<int>(&maxNkps)->default_value(3000), "max keypoints per image.");
+		("max,m", po::value<int>(&maxNkps)->default_value(3000), "max keypoints per image.")
+		("lesslog,g", po::value<int>(&lessLog)->default_value(1), "log less information, or it will be as large as rawsift.");
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
-	if (vm.count("help") > 0 || vm.count("imgs") == 0 || vm.count("rawsift") == 0 || vm.count("siftdata") == 0 
+	if (vm.count("help") > 0 || vm.count("rawsift") == 0 || vm.count("siftdata") == 0 
 		|| vm.count("ids") == 0 || vm.count("log") == 0)
 	{
 		cout << desc;
 		return 1;
 	}
 
-	showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps);
+	bool issift = false;
+	if (vm.count("imgs") > 0)
+	{
+		issift = true;
+	}
 
-	printKeypoints();
+	if (issift)
+	{
+		showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps);
+	}
+	
+	printKeypoints(lessLog != 0);
 	return 0;
 }
 
-void printKeypoints()
+void printKeypoints(bool lessLog)
 {
 	FILE* fp = fopen(SiftBinFile.c_str(), "rb");
 	//FILE* out = fopen(SiftTxtFile.c_str(), "w");
 	FILE* fdata = fopen(SiftDataFile.c_str(), "wb");
 	FILE* fids = fopen(SiftIdsFile.c_str(), "w");
 	FILE* flog = fopen(SiftLogFile.c_str(), "w");
-
+	
 	long long fid;
 	int sid;
 	int index;
@@ -92,28 +103,43 @@ void printKeypoints()
 	//float t[128];
 	while (fread(&fid, sizeof(long long), 1, fp) > 0)
 	{
-		fprintf(flog, "%lld", fid);
+		if (!lessLog)
+		{
+			fprintf(flog, "%lld", fid);
+		}
 		fread(&sid, sizeof(int), 1, fp);
-		fprintf(flog, "_%d", sid);
+		if (!lessLog)
+		{
+			fprintf(flog, "_%d", sid);
+		}
 		// ids file
 		fprintf(fids, "%d %lld", curId, fid);
 
 		fread(&buf, sizeof(double), 4, fp); 
 		for (int i=0; i<4; i++)
 		{
-			fprintf(flog, " %lg", buf[i]);
+			if (!lessLog)
+			{
+				fprintf(flog, " %lg", buf[i]);
+			}
 			fprintf(fids, " %lg", buf[i]);
 		}
 
 		fread(&data, sizeof(unsigned short), 128, fp);
-		for (int i=0; i<128; i++)
+		if (!lessLog)
 		{
-			fprintf(flog, " %hu", data[i]);
-			//t[i] = data[i];
-			//fprintf(out, i==0?"%lg":" %lg", data[i]);
+			for (int i=0; i<128; i++)
+			{
+				fprintf(flog, " %hu", data[i]);
+				//t[i] = data[i];
+				//fprintf(out, i==0?"%lg":" %lg", data[i]);
+			}
 		}
 		fwrite(data, sizeof(unsigned short), 128, fdata);
-		fprintf(flog, "\n");
+		if (!lessLog)
+		{
+			fprintf(flog, "\n");
+		}
 		fprintf(fids, "\n");
 		//fprintf(out, "\n");
 

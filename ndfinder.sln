@@ -16,6 +16,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pickpics", "pickpics\pickpi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "transform50", "transform50\transform50.vcproj", "{2B1EBC61-7A5C-4D84-AE8D-6195B0D996CD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cutdata", "cutdata\cutdata.vcproj", "{A8520216-B000-47CA-AA28-8664E29DC6EB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pictrans", "pictrans\pictrans.vcproj", "{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -46,6 +50,14 @@ Global
 		{2B1EBC61-7A5C-4D84-AE8D-6195B0D996CD}.Debug|Win32.Build.0 = Debug|Win32
 		{2B1EBC61-7A5C-4D84-AE8D-6195B0D996CD}.Release|Win32.ActiveCfg = Release|Win32
 		{2B1EBC61-7A5C-4D84-AE8D-6195B0D996CD}.Release|Win32.Build.0 = Release|Win32
+		{A8520216-B000-47CA-AA28-8664E29DC6EB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8520216-B000-47CA-AA28-8664E29DC6EB}.Debug|Win32.Build.0 = Debug|Win32
+		{A8520216-B000-47CA-AA28-8664E29DC6EB}.Release|Win32.ActiveCfg = Release|Win32
+		{A8520216-B000-47CA-AA28-8664E29DC6EB}.Release|Win32.Build.0 = Release|Win32
+		{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}.Debug|Win32.Build.0 = Debug|Win32
+		{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}.Release|Win32.ActiveCfg = Release|Win32
+		{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
