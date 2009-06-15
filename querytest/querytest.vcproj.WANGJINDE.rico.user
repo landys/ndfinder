@@ -11,7 +11,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-e gpcavects_eig.txt E:\testsift\pics\52.jpg E:\testsift\pics\59.jpg E:\testsift\pcasift\52_59.jpg 0.8 1"
+				CommandArguments=""
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
@@ -22,7 +22,7 @@
 				SQLDebugging=""
 				Environment=""
 				EnvironmentMerge="true"
-				DebuggerFlavor="0"
+				DebuggerFlavor=""
 				MPIRunCommand=""
 				MPIRunArguments=""
 				MPIRunWorkingDirectory=""
@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-e gpcavects_eig.txt E:\testsift\pics\52.jpg E:\testsift\pics\59.jpg E:\testsift\pcasift\52_59.jpg 0.8 0.001"
+				CommandArguments=""
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
