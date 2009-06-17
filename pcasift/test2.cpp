@@ -21,6 +21,7 @@ string SiftDataFile;// = BaseDir + "mm270k.sift.data";
 string SiftIdsFile;// = BaseDir + "mm270k.ids.txt";
 string SiftLogFile;// = BaseDir + "mm270k.sift.log";
 
+#ifndef MERGE_TEST
 int main(int argc, char* argv[])
 {
 	// args
@@ -68,6 +69,7 @@ int main(int argc, char* argv[])
 	printKeypoints(lessLog != 0);
 	return 0;
 }
+#endif //MERGE_TEST
 
 void printKeypoints(bool lessLog)
 {

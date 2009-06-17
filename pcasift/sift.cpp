@@ -25,7 +25,10 @@ that accompanied this distribution.
 #include <cv.h>
 #include <time.h>
 #include <queue>
+#include <map>
+#include <deque>
 #include <functional>
+#include <algorithm>
 using namespace std;
 
 /************************* Local Function Prototypes *************************/
@@ -35,7 +38,7 @@ IplImage* convert_to_gray32( IplImage* );
 IplImage*** build_gauss_pyr( IplImage*, int, int, double );
 IplImage* downsample( IplImage* );
 IplImage*** build_dog_pyr( IplImage***, int, int );
-CvSeq* scale_space_extrema( IplImage***, int, int, double, int, CvMemStorage*, int);
+CvSeq* scale_space_extrema( IplImage***, int, int, double, int, CvMemStorage*, int, double);
 int is_extremum( IplImage***, int, int, int, int );
 struct feature* interp_extremum( IplImage***, int, int, int, int, int, double, double* );
 void interp_step( IplImage***, int, int, int, int, double*, double*, double* );
@@ -43,7 +46,8 @@ CvMat* deriv_3D( IplImage***, int, int, int, int );
 CvMat* hessian_3D( IplImage***, int, int, int, int );
 double interp_contr( IplImage***, int, int, int, int, double, double, double );
 struct feature* new_feature( void );
-int is_too_edge_like( IplImage*, int, int, int );
+int is_too_edge_like( IplImage*, int, int, int, double* );
+void gauss_normalization(double*, double*, int);
 void calc_feature_scales( CvSeq*, double, int );
 void adjust_for_img_dbl( CvSeq* );
 void calc_feature_oris( CvSeq*, IplImage***, int);
@@ -61,10 +65,8 @@ void normalize_descr( struct feature* );
 int feature_cmp( void*, void*, void* );
 void release_descr_hist( double****, int );
 void release_pyr( IplImage****, int, int );
-void TTRR (int kl);
 double*** histtest = NULL;
 float eigs[PCASIZE][FEATURE_MAX_D];
-int kkll;
 
 /*********************** Functions prototyped in sift.h **********************/
 
@@ -79,11 +81,11 @@ detected features are stored in the array pointed to by \a feat.
 @return Returns the number of features stored in \a feat or -1 on failure
 @see _sift_features()
 */
-int sift_features( IplImage* img, struct feature** feat, int n_max )
+int sift_features( IplImage* img, struct feature** feat, int n_max, float contr_weight )
 {
 	return _sift_features( img, feat, SIFT_INTVLS, SIFT_SIGMA, SIFT_CONTR_THR,
 							SIFT_CURV_THR, SIFT_IMG_DBL, SIFT_DESCR_WIDTH,
-							SIFT_DESCR_HIST_BINS, n_max );
+							SIFT_DESCR_HIST_BINS, n_max, contr_weight );
 }
 
 
@@ -115,7 +117,7 @@ detected features are stored in the array pointed to by \a feat.
 */
 int _sift_features( IplImage* img, struct feature** feat, int intvls,
 				   double sigma, double contr_thr, int curv_thr,
-				   int img_dbl, int descr_width, int descr_hist_bins, int n_max )
+				   int img_dbl, int descr_width, int descr_hist_bins, int n_max, float contr_weight )
 {
 	IplImage* init_img;
 	IplImage*** gauss_pyr, *** dog_pyr;
@@ -138,7 +140,7 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 
 	storage = cvCreateMemStorage( 0 );
 	features = scale_space_extrema( dog_pyr, octvs, intvls, contr_thr,
-		curv_thr, storage, n_max );
+		curv_thr, storage, n_max, contr_weight );
 	calc_feature_scales( features, sigma, intvls );
 	if( img_dbl )
 		adjust_for_img_dbl( features );
@@ -340,6 +342,38 @@ IplImage*** build_dog_pyr( IplImage*** gauss_pyr, int octvs, int intvls )
 	return dog_pyr;
 }
 
+// gauss normalize the first value of the pair elements in deque
+void gauss_normalization(deque<pair<double, feature*> >& arr)
+{
+	int fnum = arr.size();
+	if (fnum <= 1)
+	{
+		return;
+	}
+
+	double total = 0;
+	int i;
+	double t = 0.0;
+	double T_ave, T_bzc; // mean value and standard deviation
+
+	for(i=0; i<fnum; i++)   
+		total += arr[i].first;
+	T_ave = (double)total / fnum; // mean value
+
+	total=0;
+	for(i=0; i<fnum; i++)
+		total+=(arr[i].first - T_ave) * (arr[i].first - T_ave);
+	T_bzc = (double)sqrt(total / fnum); // standard deviation
+
+	for(i=0; i<fnum; i++)
+	{
+		t = (double)(arr[i].first - T_ave) / (3 * T_bzc);
+		t = (t + 1) / 2;
+		if (t<0) t=0;
+		if (t>1) t=1;
+		arr[i].first = t;
+	}
+}
 
 
 /*
@@ -358,7 +392,7 @@ based on contrast and ratio of principal curvatures.
 */
 CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 						   double contr_thr, int curv_thr,
-						   CvMemStorage* storage, int n_max)
+						   CvMemStorage* storage, int n_max, double contr_weight)
 {
 	CvSeq* features;
 	double prelim_contr_thr = 0.5 * contr_thr / intvls;
@@ -366,17 +400,25 @@ CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 	struct detection_data* ddata;
 	int o, i, r, c;
 	double calc_contr;
-	priority_queue<pair<double, feature*>, deque<pair<double, feature*> >, greater<pair<double, feature*> > > pq_features;
-
-	int count = 0;
+	double calc_curv_ratio;
+	//priority_queue<pair<double, feature*>, deque<pair<double, feature*> >, greater<pair<double, feature*> > > pq_features;
+	// features sort by contrast. the first of pair is actually 1/constract.
+	deque<pair<double, feature*> > contr_feats;
+	// features sort by ratio of principle curvatures.
+	deque<pair<double, feature*> > rpc_feats;
 
 	features = cvCreateSeq( 0, sizeof(CvSeq), sizeof(struct feature), storage );
 	for( o = 0; o < octvs; o++ )
+	{
 		for( i = 1; i <= intvls; i++ )
+		{
 			for(r = SIFT_IMG_BORDER; r < dog_pyr[o][0]->height-SIFT_IMG_BORDER; r++)
+			{
 				for(c = SIFT_IMG_BORDER; c < dog_pyr[o][0]->width-SIFT_IMG_BORDER; c++)
+				{
 					/* perform preliminary check on contrast */
 					if( ABS( pixval32f( dog_pyr[o][i], r, c ) ) > prelim_contr_thr )
+					{
 						if( is_extremum( dog_pyr, o, i, r, c ) )
 						{
 							feat = interp_extremum(dog_pyr, o, i, r, c, intvls, contr_thr, &calc_contr);
@@ -384,9 +426,12 @@ CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 							{
 								ddata = feat_detection_data( feat );
 								if( !is_too_edge_like( dog_pyr[ddata->octv][ddata->intvl],
-									ddata->r, ddata->c, curv_thr ) )
+									ddata->r, ddata->c, curv_thr, &calc_curv_ratio ) )
 								{
-									if (pq_features.size() < n_max)
+									contr_feats.push_back(pair<double, feature*>(1.0/calc_contr, feat));
+									rpc_feats.push_back(pair<double, feature*>(calc_curv_ratio, feat));
+
+									/*if (pq_features.size() < n_max)
 									{
 										pq_features.push(pair<double, feature*>(calc_contr, feat));
 									}
@@ -403,23 +448,36 @@ CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 									{
 										free( ddata );
 										free(feat);
-									}
+									}*/
 									//cvSeqPush( features, feat );
 								}
 								else
 								{
-									count++;
 									free( ddata );
 									free(feat);
 								}
 								//free( feat );
 							}
 						}
+					}
+				}
+			}
+		}
+	}
+	
+	gauss_normalization(contr_feats);
+	gauss_normalization(rpc_feats);
 
-	/*if (count > 0)
+	map<feature*, double> result;
+	for (i=0; i<contr_feats.size(); ++i)
 	{
-		printf("number of edge-like keypoints is %d\n", count);
-	}*/
+		result[feature*] = contr_feats[i].first;
+	}
+	
+	// sort ascending by 1/constract
+	sort(contr_feats.begin(), contr_feats.end());
+	// sort ascending by ratio of principal curvatures
+	sort(rpc_feats.begin(), rpc_feats.end());
 	
 
 	for (i=0;  !pq_features.empty(); ++i) {
@@ -744,11 +802,12 @@ Lowe's paper.
 @param r feature row
 @param c feature col
 @param curv_thr high threshold on ratio of principal curvatures
+@param calc_curv_ratio output the ratio of principal curvatures of the keypoint.
 
 @return Returns 0 if the feature at (r,c) in dog_img is sufficiently
 	corner-like or 1 otherwise.
 */
-int is_too_edge_like( IplImage* dog_img, int r, int c, int curv_thr )
+int is_too_edge_like( IplImage* dog_img, int r, int c, int curv_thr, double* calc_curv_ratio )
 {
 	double d, dxx, dyy, dxy, tr, det;
 
@@ -765,11 +824,11 @@ int is_too_edge_like( IplImage* dog_img, int r, int c, int curv_thr )
 	if( det <= 0 )
 		return 1;
 
-	if( tr * tr / det < ( curv_thr + 1.0 )*( curv_thr + 1.0 ) / curv_thr )
+	*calc_curv_ratio = tr * tr / det;
+	if( *calc_curv_ratio < ( curv_thr + 1.0 )*( curv_thr + 1.0 ) / curv_thr )
 		return 0;
 	return 1;
 }
-
 
 
 /*

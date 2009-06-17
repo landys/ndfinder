@@ -11,7 +11,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-e gpcavects_eig.txt E:\testsift\pics\52.jpg E:\testsift\pics\59.jpg E:\testsift\pcasift\52_59.jpg 0.8 1"
+				CommandArguments="-d E:\testsift\mm270k\sift\mm270k_c1_2000_n100.sift.data -o E:\testsift\mm270k\sift\mm270k_c1_2000_n100_f.sift.data"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="E:\testpics\mm270k_512_trans\rotate90\002_188_32.jpg E:\testpics\mm270k_512_trans\rotate270\002_188_32.jpg E:\testsift\test\a.jpg 0.8 1"
+				CommandArguments="-d E:\testsift\mm270k\sift\mm270k_c1_2000_n100.sift.data -o E:\testsift\mm270k\sift\mm270k_c1_2000_n100_f.sift.data"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"

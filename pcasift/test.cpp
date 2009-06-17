@@ -313,7 +313,8 @@ void testSiftMatch(int argc, char** argv)
 	}
 	testSiftMatch();
 }
-/*
+
+#ifdef MERGE_TEST
 int main(int argc, char** argv)
 {
 	//doNdbcTest(argc, argv);
@@ -324,4 +325,4 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-*/
+#endif // MERGE_TEST

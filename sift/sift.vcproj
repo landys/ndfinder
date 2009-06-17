@@ -58,7 +58,6 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				AdditionalDependencies=" boost_program_options_debug.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -119,7 +118,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="boost_program_options.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"

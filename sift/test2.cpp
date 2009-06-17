@@ -1,4 +1,5 @@
 #include "siftfeat.h"
+#include "imgfeatures.h"
 #include <string>
 #include <cstdio>
 #include <cassert>
@@ -18,11 +19,17 @@ string SiftDataFile;// = BaseDir + "mm270k.sift.data";
 string SiftIdsFile;// = BaseDir + "mm270k.ids.txt";
 string SiftLogFile;// = BaseDir + "mm270k.sift.log";
 
+// -i E:\testsift\mm270k\sift_rpc\test.txt  -r E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20_f.sift
+//-d E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20_f.sift.data -s E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20.info.txt 
+//-l E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20.sift.log -c 0 -p 100 -w 0 -m 10
+#ifndef MERGE_TEST
 int main(int argc, char* argv[])
 {
 	// args
 	int doubleImg;
 	double contrThr;
+	double curThr;
+	double contrWeight;
 	int maxNkps;
 	int lessLog;
 	po::options_description desc("Allowed options");
@@ -31,10 +38,12 @@ int main(int argc, char* argv[])
 		("imgs,i", po::value<string>(&ImgsFile), "image list file.")
 		("rawsift,r", po::value<string>(&SiftBinFile), "raw sift result data in binary format. If imgs not provided, it is the input raw sift data file.")
 		("siftdata,d", po::value<string>(&SiftDataFile), "sift data for index.")
-		("ids,s", po::value<string>(&SiftIdsFile), "Inverse index of id and files, also position/scale/orientation.")
+		("info,s", po::value<string>(&SiftIdsFile), "Inverse index of id and files, also position/scale/orientation/contract/ratiopc.")
 		("log,l", po::value<string>(&SiftLogFile), "sift log file.")
 		("double,b", po::value<int>(&doubleImg)->default_value(1), "Double image before sift.")
 		("contr,c", po::value<double>(&contrThr)->default_value(0.03), "low contract threshold.")
+		("rpc,p", po::value<double>(&curThr)->default_value(10), "ratio of principal curvatures.")
+		("contrw,w", po::value<double>(&contrWeight)->default_value(1), "weight of contract, should be in [0,1].")
 		("max,m", po::value<int>(&maxNkps)->default_value(3000), "max keypoints per image.")
 		("lesslog,g", po::value<int>(&lessLog)->default_value(1), "log less information, or it will be as large as rawsift.");
 	po::variables_map vm;
@@ -42,7 +51,7 @@ int main(int argc, char* argv[])
 	po::notify(vm);
 
 	if (vm.count("help") > 0 || vm.count("rawsift") == 0 || vm.count("siftdata") == 0 
-		|| vm.count("ids") == 0 || vm.count("log") == 0)
+		|| vm.count("info") == 0 || vm.count("log") == 0)
 	{
 		cout << desc;
 		return 1;
@@ -56,12 +65,13 @@ int main(int argc, char* argv[])
 
 	if (issift)
 	{
-		showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps);
+		showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps, curThr, contrWeight);
 	}
 	
 	printKeypoints(lessLog != 0);
 	return 0;
 }
+#endif //MERGE_TEST
 
 void printKeypoints(bool lessLog)
 {
@@ -69,17 +79,19 @@ void printKeypoints(bool lessLog)
 	//FILE* out = fopen(SiftTxtFile.c_str(), "w");
 	FILE* fdata = fopen(SiftDataFile.c_str(), "wb");
 	FILE* fids = fopen(SiftIdsFile.c_str(), "w");
-	FILE* flog = fopen(SiftLogFile.c_str(), "w");
+	FILE* flog = fopen(SiftLogFile.c_str(), "a");
 	
 	long long fid;
 	int sid;
 	int index;
-	double buf[4];
-	unsigned short data[128];
+	const int nDetail = 6;
+	float buf[nDetail]; // x, y, scl, ori, contr, rpc
+	elem_t data[FEATURE_MAX_D];
 	int pointLimit = 0;
 	int nFiles = 0;
 	long long allPointsNum = 0;
 
+	fprintf(flog, "/***********************************************************/\n");
 	fread(&allPointsNum, sizeof(long long), 1, fp);
 	printf("allPointsNum=%lld\n", allPointsNum);
 	fprintf(flog, "allPointsNum=%lld\n", allPointsNum);
@@ -92,15 +104,16 @@ void printKeypoints(bool lessLog)
 
 	assert(nFiles == 1);
 	
-	int entrySize = sizeof(unsigned short);
+	int entrySize = sizeof(elem_t);
 	fwrite(&entrySize, sizeof(int), 1, fdata);
 	int num = allPointsNum;
 	fwrite(&num, sizeof(int), 1, fdata);
-	int dim = 128;
+	int dim = FEATURE_MAX_D;
 	fwrite(&dim, sizeof(int), 1, fdata);
 
-	int curId = 0;
-	//float t[128];
+	long long curId = 0;
+	long long lastId = curId;
+	long long lastFid = -1;
 	while (fread(&fid, sizeof(long long), 1, fp) > 0)
 	{
 		if (!lessLog)
@@ -113,35 +126,45 @@ void printKeypoints(bool lessLog)
 			fprintf(flog, "_%d", sid);
 		}
 		// ids file
-		fprintf(fids, "%d %lld", curId, fid);
+		fprintf(fids, "%lld %lld", curId, fid);
 
-		fread(&buf, sizeof(double), 4, fp); 
-		for (int i=0; i<4; i++)
+		fread(&buf, sizeof(float), nDetail, fp);
+		for (int i=0; i<nDetail; i++)
 		{
 			if (!lessLog)
 			{
-				fprintf(flog, " %lg", buf[i]);
+				fprintf(flog, " %g", buf[i]);
 			}
-			fprintf(fids, " %lg", buf[i]);
+			fprintf(fids, " %g", buf[i]);
 		}
 
-		fread(&data, sizeof(unsigned short), 128, fp);
+		fread(&data, sizeof(elem_t), FEATURE_MAX_D, fp);
 		if (!lessLog)
 		{
-			for (int i=0; i<128; i++)
+			for (int i=0; i<FEATURE_MAX_D; i++)
 			{
-				fprintf(flog, " %hu", data[i]);
-				//t[i] = data[i];
-				//fprintf(out, i==0?"%lg":" %lg", data[i]);
+				fprintf(flog, " %g", data[i]);
 			}
 		}
-		fwrite(data, sizeof(unsigned short), 128, fdata);
+		fwrite(data, sizeof(elem_t), FEATURE_MAX_D, fdata);
 		if (!lessLog)
 		{
 			fprintf(flog, "\n");
 		}
 		fprintf(fids, "\n");
 		//fprintf(out, "\n");
+
+		if (lastFid == -1)
+		{
+			// first time, no last fid
+			lastFid = fid;
+		}
+		else if (lastFid != fid)
+		{
+			fprintf(flog, "%lld %lld %lld %lld\n", lastFid, lastId, curId-1, curId-lastId);
+			lastFid = fid;
+			lastId = curId;
+		}
 
 		++curId;
 	}

@@ -11,7 +11,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments=""
+				CommandArguments="-q e:\testpics\mm270k_512_trans\blue\AUSTR004_16.jpg -e E:\testsift\tools\gpcavects_eig.txt -i e:\testsift\mm270k\test.index -d e:\testsift\mm270k\test.sift.data -m e:\testsift\mm270k\test.info.txt -a e:\testsift\mm270k\test.txt -l e:\testsift\mm270k\test\test.query.log -r e:\testsift\mm270k\test"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
@@ -22,7 +22,7 @@
 				SQLDebugging=""
 				Environment=""
 				EnvironmentMerge="true"
-				DebuggerFlavor=""
+				DebuggerFlavor="0"
 				MPIRunCommand=""
 				MPIRunArguments=""
 				MPIRunWorkingDirectory=""
@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments=""
+				CommandArguments="-q e:\testpics\mm270k_512\AGRICLT1\58_158.JPG -e E:\testsift\tools\gpcavects_eig.txt -i e:\testsift\mm270k\pcasift\mm270k_c1_2000_pca_n100.index -d e:\testsift\mm270k\pcasift\mm270k_c1_2000_pca_n100.sift.data -m e:\testsift\mm270k\pcasift\mm270k_c1_2000_pca_n100.info.txt -a e:\testsift\mm270k\mm270k_c1_2000_ids.txt -l e:\testsift\mm270k\pcasift\result100\mm270k_c1_2000_pca_n100.query.log -r e:\testsift\mm270k\pcasift\result100"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"

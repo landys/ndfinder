@@ -50,6 +50,8 @@ struct feature
 	double c;                      /**< Oxford-type affine region parameter */
 	double scl;                    /**< scale of a Lowe-style feature */
 	double ori;                    /**< orientation of a Lowe-style feature */
+	double contr;                  /**< contract value of the keypoint, it compared to "contr_thr/intvl", and current intvl=3 */
+	double rpc;                    /**< ratio of principal curvatures, it compared to "(curv_thr+1.0)*(curv_thr+1.0)/curv_thr" */
 	int d;                         /**< descriptor length */
 	double descr[FEATURE_MAX_D];   /**< descriptor */
 	int type;                      /**< feature type, OXFD or LOWE */

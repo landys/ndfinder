@@ -64,7 +64,7 @@ char outfileName[256] = {'\0'};	// the result file name
 // for ntfs, 64G is ok.
 const int LIMIT_POINTS_PER_FILE = 64000000;
 
-int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, int n_max);
+int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight);
 void saveOneImageFeatures(struct feature* pfeatures, int n, long long id);
 void saveAndCloseOutFileHeader();
 void initParameter(const char* out_file_name);
@@ -73,7 +73,8 @@ void initParameter(const char* out_file_name);
  * This interface provides SIFT algorithm implementation. Returns number of files to be sifted if success, -1 if fail.
  * The image names in showSift should be less then 255, or maybe stack overflow.
 **/
-extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_file_name, int img_dbl, double contr_thr, int n_max/*=0*/)
+extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_file_name, int img_dbl/*=1*/, 
+								   double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
 {
 	initParameter(out_file_name);
 
@@ -106,7 +107,7 @@ extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_fi
 		for (imagename=linebuf; *imagename!='\0' && (*imagename==' ' || *imagename=='\t'); ++imagename); // loop stop here, eliminate the head spaces/tabs.
 
 		//printf("%s\n", imagename);
-		int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, n_max);
+		int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
 		if (n == -1)
 		{
 			FREE(pfeatures);
@@ -131,7 +132,8 @@ extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_fi
  * @parameter out_file_name the output keypoints file
  * 
  */
-extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_name, int img_dbl, double contr_thr, long long id/*=0*/, int n_max/*=0*/)
+extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_name, int img_dbl/*=1*/, 
+									double contr_thr/*=0.03*/, long long id/*=0*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
 {
 	initParameter(out_file_name);
 
@@ -141,7 +143,7 @@ extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_
 
 	struct feature* pfeatures = 0;
 
-	int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, n_max);
+	int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
 	if (n > 0) {
 		saveOneImageFeatures(pfeatures, n, id);
 		allPointsNum += n;
@@ -154,9 +156,10 @@ extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_
 
 }
 
-extern "C" DLL_EXPORT int siftFeature(const char* imagename, struct feature** fp, int img_dbl, double contr_thr, int n_max)
+extern "C" DLL_EXPORT int siftFeature(const char* imagename, struct feature** fp, int img_dbl/*=1*/, 
+									  double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
 {
-	int n = doSiftImage(imagename, fp, img_dbl, contr_thr, n_max);
+	int n = doSiftImage(imagename, fp, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
 
 	return n;
 }
@@ -164,7 +167,7 @@ extern "C" DLL_EXPORT int siftFeature(const char* imagename, struct feature** fp
 /**
  * Do real sift here, and save the featured into an opened file, which passed from the caller.
 **/
-int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, int n_max)
+int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight)
 {
 	IplImage* img;
 	
@@ -178,7 +181,7 @@ int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl,
 	}
 
 	int n = _sift_features( img, ppfeatures, intvls, sigma, contr_thr, curv_thr,
-		img_dbl, descr_width, descr_hist_bins, n_max );
+		img_dbl, descr_width, descr_hist_bins, n_max, contr_weight );
 
 	cvReleaseImage(&img);
 
@@ -190,7 +193,8 @@ void saveOneImageFeatures(struct feature* pfeatures, int n, long long id)
 {
 	static char buf[12] = {'\0'};
 	static char outfilePiece[256] = {'\0'};
-	unsigned short desc[FEATURE_MAX_D];
+	elem_t desc[FEATURE_MAX_D];
+	float t;
 
 	for(int i = 0; i < n; i++ )
 	{
@@ -208,16 +212,24 @@ void saveOneImageFeatures(struct feature* pfeatures, int n, long long id)
 		//	pfeatures[i].scl, pfeatures[i].ori );
 		fwrite(&id, sizeof(long long), 1, outfile);
 		fwrite(&i, sizeof(int), 1, outfile);
-		fwrite(&(pfeatures[i].x), sizeof(double), 1, outfile);
-		fwrite(&(pfeatures[i].y), sizeof(double), 1, outfile);
-		fwrite(&(pfeatures[i].scl), sizeof(double), 1, outfile);
-		fwrite(&(pfeatures[i].ori), sizeof(double), 1, outfile);
+		t = pfeatures[i].x;
+		fwrite(&t, sizeof(float), 1, outfile);
+		t = pfeatures[i].y;
+		fwrite(&t, sizeof(float), 1, outfile);
+		t = pfeatures[i].scl;
+		fwrite(&t, sizeof(float), 1, outfile);
+		t = pfeatures[i].ori;
+		fwrite(&t, sizeof(float), 1, outfile);
+		t = pfeatures[i].contr;
+		fwrite(&t, sizeof(float), 1, outfile);
+		t = pfeatures[i].rpc;
+		fwrite(&t, sizeof(float), 1, outfile);
 		for(int j = 0; j < FEATURE_MAX_D; j++ )
 		{
-			desc[j] = (unsigned short)(pfeatures[i].descr[j]);
+			desc[j] = (elem_t)(pfeatures[i].descr[j]);
 			//fprintf( outfile, "%d ", ((int)pfeatures[i].descr[j] ));	
 		}
-		fwrite(&(desc[0]), sizeof(unsigned short), FEATURE_MAX_D, outfile);
+		fwrite(&(desc[0]), sizeof(elem_t), FEATURE_MAX_D, outfile);
 		//fwrite(&(pfeatures[i].descr[0]), sizeof(double), FEATURE_MAX_D, outfile);
 
 		//fprintf( outfile, "\n" );

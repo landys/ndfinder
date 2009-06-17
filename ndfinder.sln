@@ -16,6 +16,20 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pictrans", "pictrans\pictrans.vcproj", "{F0FB9F47-FE48-4B54-B4D6-D67E48769DE3}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "querytest", "querytest\querytest.vcproj", "{7D1141D4-FDC3-4B71-920C-D7F43DA2BEED}"
+	ProjectSection(ProjectDependencies) = postProject
+		{521B6B07-5D61-4BEF-BAB9-3F25EC00F473} = {521B6B07-5D61-4BEF-BAB9-3F25EC00F473}
+		{556E6EC8-58A3-4865-9167-A0F9E0DDFEA0} = {556E6EC8-58A3-4865-9167-A0F9E0DDFEA0}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "datamod", "datamod\datamod.vcproj", "{3C97EA13-6EB6-4F47-8F6C-61B0F5862477}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mplsh-run-short", "mplsh-run-short\mplsh-run-short.vcproj", "{8B0E93F3-61FA-42F7-95BF-81AC51C5DD76}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "querylab", "querylab\querylab.vcproj", "{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}"
+	ProjectSection(ProjectDependencies) = postProject
+		{521B6B07-5D61-4BEF-BAB9-3F25EC00F473} = {521B6B07-5D61-4BEF-BAB9-3F25EC00F473}
+		{556E6EC8-58A3-4865-9167-A0F9E0DDFEA0} = {556E6EC8-58A3-4865-9167-A0F9E0DDFEA0}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +69,18 @@ Global
 		{7D1141D4-FDC3-4B71-920C-D7F43DA2BEED}.Debug|Win32.Build.0 = Debug|Win32
 		{7D1141D4-FDC3-4B71-920C-D7F43DA2BEED}.Release|Win32.ActiveCfg = Release|Win32
 		{7D1141D4-FDC3-4B71-920C-D7F43DA2BEED}.Release|Win32.Build.0 = Release|Win32
+		{3C97EA13-6EB6-4F47-8F6C-61B0F5862477}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3C97EA13-6EB6-4F47-8F6C-61B0F5862477}.Debug|Win32.Build.0 = Debug|Win32
+		{3C97EA13-6EB6-4F47-8F6C-61B0F5862477}.Release|Win32.ActiveCfg = Release|Win32
+		{3C97EA13-6EB6-4F47-8F6C-61B0F5862477}.Release|Win32.Build.0 = Release|Win32
+		{8B0E93F3-61FA-42F7-95BF-81AC51C5DD76}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8B0E93F3-61FA-42F7-95BF-81AC51C5DD76}.Debug|Win32.Build.0 = Debug|Win32
+		{8B0E93F3-61FA-42F7-95BF-81AC51C5DD76}.Release|Win32.ActiveCfg = Release|Win32
+		{8B0E93F3-61FA-42F7-95BF-81AC51C5DD76}.Release|Win32.Build.0 = Release|Win32
+		{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}.Debug|Win32.ActiveCfg = Debug|Win32
+		{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}.Debug|Win32.Build.0 = Debug|Win32
+		{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}.Release|Win32.ActiveCfg = Release|Win32
+		{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

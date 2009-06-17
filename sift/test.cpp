@@ -12,7 +12,10 @@
 #include <map>
 #include <cmath>
 #include <iostream>
+#include <boost/program_options.hpp>
+#include <boost/format.hpp>
 using namespace std;
+namespace po = boost::program_options; 
 
 string imgName = "E:\\pic_skindetect\\clothtest\\testsift\\19032007144314hello_kitty_tattoo.jpg";
 string imgName2 = "E:\\pic_skindetect\\clothtest\\testsift\\hello-kitty.jpg";
@@ -26,6 +29,12 @@ string outSelectMatchLog = "E:\\pic_skindetect\\clothtest\\testsift\\selectmatch
 double threshod = 0.8;
 double distlimit = 10.0;
 int hideMerged = 0;
+
+int doubleImg;
+double contrThr;
+double curThr;
+double contrWeight;
+int maxNkps;
 
 #pragma comment(lib, "cxcore.lib")
 #pragma comment(lib, "cv.lib")
@@ -103,7 +112,7 @@ void testMergeImages()
 void testSift()
 {
 	struct feature* fp = 0;
-	int n = siftFeature(imgName.c_str(), &fp, 1, 0.04, 4000);
+	int n = siftFeature(imgName.c_str(), &fp, doubleImg, contrThr, maxNkps, curThr, contrWeight);
 
 	FILE* fo = fopen(outFile.c_str(), "w");
 	for (int i=0; i<n; ++i)
@@ -241,9 +250,9 @@ void showSiftResult(IplImage* img1, IplImage* img2, feature* fp1, feature* fp2, 
 void testSiftMatch()
 {
 	struct feature* fp = 0;
-	int n = siftFeature(imgName.c_str(), &fp, 1, 0.04, 4000);
+	int n = siftFeature(imgName.c_str(), &fp, doubleImg, contrThr, maxNkps, curThr, contrWeight);
 	struct feature* fp2 = 0;
-	int n2 = siftFeature(imgName2.c_str(), &fp2, 1, 0.04, 4000);
+	int n2 = siftFeature(imgName2.c_str(), &fp2, doubleImg, contrThr, maxNkps, curThr, contrWeight);
 
 	// save feature to the file
 	FILE* fo = fopen(outFile.c_str(), "w");
@@ -273,31 +282,42 @@ void testSiftMatch()
 
 void testSiftMatch(int argc, char** argv)
 {
-	if (argc >= 5)
+	// args
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("help,h", "produce help message.")
+		("img1,i", po::value<string>(&imgName), "image file 1.")
+		("img2,j", po::value<string>(&imgName2), "image file 2.")
+		("imgmerge,t", po::value<string>(&imgMergeName), "merged image file name.")
+		("double,b", po::value<int>(&doubleImg)->default_value(1), "Double image before sift.")
+		("contr,c", po::value<double>(&contrThr)->default_value(0.03), "low contract threshold.")
+		("rpc,p", po::value<double>(&curThr)->default_value(10), "ratio of principal curvatures.")
+		("contrw,w", po::value<double>(&contrWeight)->default_value(1), "weight of contract, should be in [0,1].")
+		("max,m", po::value<int>(&maxNkps)->default_value(3000), "max keypoints per image.")
+		("ratiothr,r", po::value<double>(&threshod)->default_value(0.8), "high limit of ratio of distance of closest keypoint and second closest keypoint.")
+		("distthr,d", po::value<double>(&distlimit)->default_value(10), "high absolute limit of distance between two keypoints.")
+		("hidden,g", po::value<int>(&hideMerged)->default_value(0), "if hide window in the processing, default is not hidden.");
+	po::variables_map vm;
+	po::store(po::parse_command_line(argc, argv, desc), vm);
+	po::notify(vm);
+
+	if (vm.count("help") > 0 || vm.count("img1") == 0 || vm.count("img2") == 0 
+		|| vm.count("imgmerge") == 0)
 	{
-		imgName = string(argv[1]);
-		imgName2 = string(argv[2]);
-		imgMergeName = string(argv[3]);
-		sscanf(argv[4], "%lf", &threshod);
-		if (argc >= 6)
-		{
-			sscanf(argv[5], "%lf", &distlimit);
-
-			if (argc >= 7)
-			{
-				sscanf(argv[6], "%d", &hideMerged);
-			}
-		}
-		
-		outFile = imgName + "_out.txt";
-		outFile2 = imgName2 + "_out.txt";
-
-		outMatchLog = imgMergeName + "_match.txt";
-		outSelectMatchLog = imgMergeName + "_match_impor.txt";
+		cout << desc;
+		return;
 	}
+
+	outFile = imgName + "_out.txt";
+	outFile2 = imgName2 + "_out.txt";
+
+	outMatchLog = imgMergeName + "_match.txt";
+	outSelectMatchLog = imgMergeName + "_match_impor.txt";
+
 	testSiftMatch();
 }
-/*
+
+#ifdef MERGE_TEST
 int main(int argc, char** argv)
 {
 	//doNdbcTest(argc, argv);
@@ -308,4 +328,4 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-*/
+#endif //MERGE_TEST

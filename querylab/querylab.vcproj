@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="querytest"
-	ProjectGUID="{7D1141D4-FDC3-4B71-920C-D7F43DA2BEED}"
-	RootNamespace="test"
+	Name="querylab"
+	ProjectGUID="{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}"
+	RootNamespace="querylab"
 	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
@@ -111,15 +111,12 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
-				InlineFunctionExpansion="2"
-				EnableIntrinsicFunctions="false"
-				WholeProgramOptimization="false"
+				EnableIntrinsicFunctions="true"
 				PreprocessorDefinitions="WIN32"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				WarningLevel="3"
-				SuppressStartupBanner="false"
-				DebugInformationFormat="0"
+				DebugInformationFormat="3"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -171,7 +168,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\querytest.cpp"
+				RelativePath=".\querylab.cpp"
 				>
 			</File>
 		</Filter>
