@@ -67,6 +67,7 @@ int K = 60;
 int TopKPics = 200;
 //const int Interval = 50;
 int MatchKpLimit = 3;
+int MatchKpLimit2 = 10; // another match limit
 float DistLimit = DefaultDistLimit;
 
 int DoubleImg = 1;
@@ -182,7 +183,8 @@ void queryImages(int argc, char* argv[])
 		("contrw,w", po::value<double>(&ContrWeight)->default_value(1), "weight of contract, should be in [0,1].")
 		("topk,k", po::value<int>(&K)->default_value(60), "the top k points by every keypoint query.")
 		("distlimit,t", po::value<float>(&DistLimit)->default_value(DefaultDistLimit), "distance limit between keypoints.")
-		("matchlimit,g", po::value<int>(&MatchKpLimit)->default_value(3), "the number of keypoints should match between near-duplicate images.");
+		("matchlimit,g", po::value<int>(&MatchKpLimit)->default_value(3), "the number of keypoints should match between near-duplicate images.")
+		("matchlimit2,s", po::value<int>(&MatchKpLimit2)->default_value(10), "another matchlimit for more test.");
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -224,7 +226,7 @@ void queryImages(int argc, char* argv[])
 	qlog << "/******************************************************/" << endl;
 
 	ofstream outRe(ResultFile.c_str());
-	outRe << "filename,sifttime,querytime,correct,wrong" << endl;
+	outRe << "filename,sifttime,querytime,correct,wrong,correct2,wrong2" << endl;
 
 	cout << "init query..." << endl;
 	initQuery();
@@ -319,6 +321,9 @@ void queryImages(int argc, char* argv[])
 		int count = 0;
 		int correct = 0;
 		int wrong = 0;
+		// correct2 and wrong2 is for another match limit
+		int correct2 = 0;
+		int wrong2 = 0;
 		vector<int> correctMatches;
 		vector<int> wrongMatches;
 		const string testPicPart = getFileNameNoExt(testPic);
@@ -336,11 +341,19 @@ void queryImages(int argc, char* argv[])
 			{
 				++correct;
 				correctMatches.push_back(it->first);
+				if (it->first >= MatchKpLimit2)
+				{
+					++correct2;
+				}
 			}
 			else
 			{
 				++wrong;
 				wrongMatches.push_back(it->first);
+				if (it->first >= MatchKpLimit2)
+				{
+					++wrong2;
+				}
 			}
 			
 		}
@@ -348,7 +361,7 @@ void queryImages(int argc, char* argv[])
 		cout << "total real match files: " << count << endl;
 		qlog << "total real match files: " << count << endl;
 
-		outRe << boost::format(",%ld,%d,%d") % (clock()-time) % correct % wrong << endl;
+		outRe << boost::format(",%ld,%d,%d,%d,%d") % (clock()-time) % correct % wrong % correct2 % wrong2 << endl;
 		qlog << "correct matched points: " << endl;
 		for (int i=0; i<correctMatches.size(); ++i)
 		{

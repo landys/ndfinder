@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-i E:\testsift\pics\37.jpg -j E:\testsift\pics\57.jpg -t E:\testsift\test\c_d.jpg -c 0.03 -p 10 -m 100 -w 0"
+				CommandArguments="-i E:\testsift\pics\37.jpg -j E:\testsift\pics\57.jpg -t E:\testsift\test\c_d.jpg -c 0.03 -p 10 -m 100 -w 1"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
