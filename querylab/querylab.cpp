@@ -66,8 +66,8 @@ const unsigned T = 20;
 int K = 60;
 int TopKPics = 200;
 //const int Interval = 50;
-int MatchKpLimit = 3;
-int MatchKpLimit2 = 10; // another match limit
+int DownMatchKpLimit = 2;
+int UpMatchKpLimit = 10; // another match limit
 float DistLimit = DefaultDistLimit;
 
 int DoubleImg = 1;
@@ -183,8 +183,8 @@ void queryImages(int argc, char* argv[])
 		("contrw,w", po::value<double>(&ContrWeight)->default_value(1), "weight of contract, should be in [0,1].")
 		("topk,k", po::value<int>(&K)->default_value(60), "the top k points by every keypoint query.")
 		("distlimit,t", po::value<float>(&DistLimit)->default_value(DefaultDistLimit), "distance limit between keypoints.")
-		("matchlimit,g", po::value<int>(&MatchKpLimit)->default_value(3), "the number of keypoints should match between near-duplicate images.")
-		("matchlimit2,s", po::value<int>(&MatchKpLimit2)->default_value(10), "another matchlimit for more test.");
+		("downmatchlimit,g", po::value<int>(&DownMatchKpLimit)->default_value(2), "the down number of keypoints should match between near-duplicate images. it uses all matchlimit in [downmatchlimit,upmatchlimt] to calculate all precision/recall.")
+		("upmatchlimit,s", po::value<int>(&UpMatchKpLimit)->default_value(10), "the down number of keypoints should match between near-duplicate images.");
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -226,7 +226,12 @@ void queryImages(int argc, char* argv[])
 	qlog << "/******************************************************/" << endl;
 
 	ofstream outRe(ResultFile.c_str());
-	outRe << "filename,sifttime,querytime,correct,wrong,correct2,wrong2" << endl;
+	outRe << "filename,sifttime,querytime";
+	for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+	{
+		outRe << boost::format(",correct%d,wrong%d") % i % i;
+	}
+	outRe << endl;
 
 	cout << "init query..." << endl;
 	initQuery();
@@ -311,7 +316,7 @@ void queryImages(int argc, char* argv[])
 		for (map<int, multiset<MatchKp> >::const_iterator it=results.begin(); it!=results.end(); ++it)
 		{
 			int mps = it->second.size();
-			if (mps >= MatchKpLimit)
+			if (mps >= DownMatchKpLimit)
 			{
 				topkM.insert(pair<int, int>(mps, it->first));
 			}
@@ -319,11 +324,10 @@ void queryImages(int argc, char* argv[])
 
 		// do results statistic
 		int count = 0;
-		int correct = 0;
-		int wrong = 0;
-		// correct2 and wrong2 is for another match limit
-		int correct2 = 0;
-		int wrong2 = 0;
+		int* corrects = new int[UpMatchKpLimit+1];
+		int* wrongs = new int[UpMatchKpLimit+1];
+		fill(&corrects[0], &corrects[UpMatchKpLimit+1], 0);
+		fill(&wrongs[0], &wrongs[UpMatchKpLimit+1], 0);
 		vector<int> correctMatches;
 		vector<int> wrongMatches;
 		const string testPicPart = getFileNameNoExt(testPic);
@@ -339,20 +343,24 @@ void queryImages(int argc, char* argv[])
 
 			if (checkMatchByFileName(testPicPart, sr))
 			{
-				++correct;
 				correctMatches.push_back(it->first);
-				if (it->first >= MatchKpLimit2)
+				for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
 				{
-					++correct2;
+					if (it->first >= i)
+					{
+						++corrects[i];
+					}
 				}
 			}
 			else
 			{
-				++wrong;
 				wrongMatches.push_back(it->first);
-				if (it->first >= MatchKpLimit2)
+				for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
 				{
-					++wrong2;
+					if (it->first >= i)
+					{
+						++wrongs[i];
+					}
 				}
 			}
 			
@@ -361,7 +369,12 @@ void queryImages(int argc, char* argv[])
 		cout << "total real match files: " << count << endl;
 		qlog << "total real match files: " << count << endl;
 
-		outRe << boost::format(",%ld,%d,%d,%d,%d") % (clock()-time) % correct % wrong % correct2 % wrong2 << endl;
+		outRe << boost::format(",%ld") % (clock()-time);
+		for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+		{
+			outRe << boost::format(",%d,%d") % corrects[i] % wrongs[i];
+		}
+		outRe << endl;
 		qlog << "correct matched points: " << endl;
 		for (int i=0; i<correctMatches.size(); ++i)
 		{
@@ -374,6 +387,8 @@ void queryImages(int argc, char* argv[])
 		}
 		qlog << endl;
 
+		delete[] corrects;
+		delete[] wrongs;
 		free(feat);
 	}
 

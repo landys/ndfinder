@@ -13,6 +13,7 @@ typedef float elem_t;
 // contr_weight means: the n_max is determined by contract and ratio of principle curvatures,
 // contr_weight is the weight of contract. Its value is in [0, 1],
 // and 1 means n_max is only depended on contract.
+// Besides, if weight==-1, then keypoints will be selected by random.
 
 // in fact, "contr_thr/intvl" and "(curv_thr+1.0)*(curv_thr+1.0)/curv_thr" will used
 // the value of intvl is 3.

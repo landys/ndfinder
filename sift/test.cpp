@@ -19,10 +19,12 @@ namespace po = boost::program_options;
 
 string imgName = "E:\\pic_skindetect\\clothtest\\testsift\\19032007144314hello_kitty_tattoo.jpg";
 string imgName2 = "E:\\pic_skindetect\\clothtest\\testsift\\hello-kitty.jpg";
+string siftImgName;
+string siftImgName2;
 string imgMergeName = "E:\\pic_skindetect\\clothtest\\testsift\\merge.jpg";
 string outFile = "E:\\pic_skindetect\\clothtest\\testsift\\out.txt";
 string outFile2 = "E:\\pic_skindetect\\clothtest\\testsift\\out2.txt";
-const int interval = 50;
+const int interval = 20;
 const int dim = FEATURE_MAX_D;
 string outMatchLog = "E:\\pic_skindetect\\clothtest\\testsift\\matchlog.txt";
 string outSelectMatchLog = "E:\\pic_skindetect\\clothtest\\testsift\\selectmatchlog.txt";
@@ -35,6 +37,9 @@ double contrThr;
 double curThr;
 double contrWeight;
 int maxNkps;
+
+// mark if two images merged in width
+bool IsWidth = true;
 
 #pragma comment(lib, "cxcore.lib")
 #pragma comment(lib, "cv.lib")
@@ -71,14 +76,32 @@ IplImage* mergeImages(const IplImage* img1, const IplImage* img2)
 {
 	CvSize size1 = cvGetSize(img1);
 	CvSize size2 = cvGetSize(img2);
-	CvSize mergeSize = cvSize(size1.width + size2.width + interval, max(size1.height, size2.height));
+	CvSize mergeSize = cvSize(size1.width + size2.width + interval, size1.height + size2.height + interval);
+	if (size1.width + size2.width < size1.height + size2.height)
+	{
+		mergeSize.height = max(size1.height, size2.height);
+	}
+	else
+	{
+		IsWidth = false;
+		mergeSize.width = max(size1.width, size2.width);
+	}
 
+	
 	IplImage* imgMerge = cvCreateImage(mergeSize, img1->depth, img1->nChannels);
 	cvSet(imgMerge, cvScalar(255, 255, 255));
 
 	cvSetImageROI(imgMerge, cvRect(0, 0, size1.width, size1.height));
 	cvCopyImage(img1, imgMerge);
-	cvSetImageROI(imgMerge, cvRect(size1.width + interval, 0, size2.width, size2.height));
+	if (IsWidth)
+	{
+		cvSetImageROI(imgMerge, cvRect(size1.width + interval, 0, size2.width, size2.height));
+	}
+	else
+	{
+		cvSetImageROI(imgMerge, cvRect(0, size1.height + interval, size2.width, size2.height));
+	}
+	
 	cvCopyImage(img2, imgMerge);
 	cvResetImageROI(imgMerge);
 
@@ -168,7 +191,7 @@ void drawMatchLines(IplImage* img, const CvSize& size1, feature* fp1, feature* f
 	FILE* fp = fopen(outMatchLog.c_str(), "w");
 	FILE* fpSel = fopen(outSelectMatchLog.c_str(), "w");
 
-	CvScalar c1 = cvScalar(255, 0, 0);
+	CvScalar c1 = cvScalar(0, 255, 0);
 	CvScalar c2 = cvScalar(0, 0, 255);
 	for (int i=0; i<n1; ++i)
 	{
@@ -186,15 +209,24 @@ void drawMatchLines(IplImage* img, const CvSize& size1, feature* fp1, feature* f
 		double ratio = (it2->first == 0.0 ? 0.0 : it->first/it2->first);
 		printRatio(fp, ratio);
 
+		CvPoint p2 = cvPoint(it->second->x, it->second->y);
+		if (IsWidth)
+		{
+			p2.x = it->second->x+size1.width+interval;
+		}
+		else
+		{
+			p2.y = it->second->y+size1.height+interval;
+		}
 		if (ratio <= threshod)
 		{
-			cvLine(img, cvPoint(fp1[i].x, fp1[i].y), cvPoint(it->second->x+size1.width+interval, it->second->y), c1);
+			cvLine(img, cvPoint(fp1[i].x, fp1[i].y), p2, c1, 3);
 			printMatchPair(fpSel, fp1[i], *(it->second), *(it2->second), it->first, it2->first, i);
 			printRatio(fpSel, ratio);
 		}
 		else if (it->first <= distlimit)
 		{
-			cvLine(img, cvPoint(fp1[i].x, fp1[i].y), cvPoint(it->second->x+size1.width+interval, it->second->y), c2);
+			cvLine(img, cvPoint(fp1[i].x, fp1[i].y), p2, c2, 3);
 			printMatchPair(fpSel, fp1[i], *(it->second), *(it2->second), it->first, it2->first, i);
 			printRatio(fpSel, ratio);
 		}
@@ -235,6 +267,8 @@ void showSiftResult(IplImage* img1, IplImage* img2, feature* fp1, feature* fp2, 
 	{
 		cvShowImage("siftMerge", mergeImg);
 	}
+	cvSaveImage(siftImgName.c_str(), siftImg1);
+	cvSaveImage(siftImgName2.c_str(), siftImg2);
 	cvSaveImage(imgMergeName.c_str(), mergeImg);
 
 	if (!hideMerged)
@@ -286,9 +320,11 @@ void testSiftMatch(int argc, char** argv)
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message.")
-		("img1,i", po::value<string>(&imgName), "image file 1.")
-		("img2,j", po::value<string>(&imgName2), "image file 2.")
-		("imgmerge,t", po::value<string>(&imgMergeName), "merged image file name.")
+		("img1,i", po::value<string>(&imgName), "input image file 1.")
+		("img2,j", po::value<string>(&imgName2), "input image file 2.")
+		("siftimg1,e", po::value<string>(&siftImgName), "output image file 1 with keypoints marked.")
+		("siftimg2,f", po::value<string>(&siftImgName2), "output image file 2 with keypoints marked.")
+		("imgmerge,t", po::value<string>(&imgMergeName), "output merged image file name.")
 		("double,b", po::value<int>(&doubleImg)->default_value(1), "Double image before sift.")
 		("contr,c", po::value<double>(&contrThr)->default_value(0.03), "low contract threshold.")
 		("rpc,p", po::value<double>(&curThr)->default_value(10), "ratio of principal curvatures.")
@@ -302,7 +338,7 @@ void testSiftMatch(int argc, char** argv)
 	po::notify(vm);
 
 	if (vm.count("help") > 0 || vm.count("img1") == 0 || vm.count("img2") == 0 
-		|| vm.count("imgmerge") == 0)
+		 || vm.count("siftimg1") == 0 || vm.count("siftimg2") == 0 || vm.count("imgmerge") == 0)
 	{
 		cout << desc;
 		return;

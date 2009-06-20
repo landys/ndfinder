@@ -547,11 +547,11 @@ Draws Lowe-type features
 */
 void draw_lowe_features( IplImage* img, struct feature* feat, int n )
 {
-	CvScalar color = CV_RGB( 255, 255, 255 );
+	CvScalar color = CV_RGB( 255, 255, 0 );
 	int i;
 
 	if( img-> nChannels > 1 )
-		color = FEATURE_LOWE_COLOR;
+		//color = FEATURE_LOWE_COLOR;
 	for( i = 0; i < n; i++ )
 		draw_lowe_feature( img, feat + i, color );
 }
@@ -576,7 +576,7 @@ void draw_lowe_feature( IplImage* img, struct feature* feat, CvScalar color )
 	/* compute points for an arrow scaled and rotated by feat's scl and ori */
 	start_x = cvRound( feat->x );
 	start_y = cvRound( feat->y );
-	scl = feat->scl;
+	scl = feat->scl * 3;
 	ori = feat->ori;
 	len = cvRound( scl * scale );
 	hlen = cvRound( scl * hscale );
@@ -592,9 +592,9 @@ void draw_lowe_feature( IplImage* img, struct feature* feat, CvScalar color )
 	h1 = cvPoint( h1_x, h1_y );
 	h2 = cvPoint( h2_x, h2_y );
 
-	cvLine( img, start, end, color, 1, 8, 0 );
-	cvLine( img, end, h1, color, 1, 8, 0 );
-	cvLine( img, end, h2, color, 1, 8, 0 );
+	cvLine( img, start, end, color, 2, 8, 0 );
+	cvLine( img, end, h1, color, 2, 8, 0 );
+	cvLine( img, end, h2, color, 2, 8, 0 );
 }
 
 

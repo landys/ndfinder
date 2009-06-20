@@ -500,6 +500,22 @@ CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
 			free (contr_feats[i].second);
 		}
 	}
+	else if (contr_weight == -1)
+	{	// random method
+		random_shuffle(contr_feats.begin(), contr_feats.end());
+		for (i=0; i<n_max; ++i)
+		{
+			cvSeqPush( features, contr_feats[i].second );
+			free (contr_feats[i].second);
+		}
+
+		for (; i<contr_feats.size(); ++i)
+		{
+			ddata = feat_detection_data( contr_feats[i].second );
+			free( ddata );
+			free (contr_feats[i].second);
+		}
+	}
 	else
 	{
 		// normalize for linear weight

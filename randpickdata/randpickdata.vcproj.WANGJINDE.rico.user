@@ -11,7 +11,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-i E:\testsift\mm270k\sift_rpc\test.txt  -r E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20_f.sift -d E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20_f.sift.data -s E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20.info.txt -l E:\testsift\mm270k\sift_rpc\mm270k_c1_2000_20.sift.log -c 0.01 -p 11 -w 1 -m 10"
+				CommandArguments="-d E:\testsift\mm270k\sift\mm270k_c1_2000_f.sift.data -i E:\testsift\mm270k\sift\mm270k_c1_2000.info.txt -o E:\testsift\mm270k\sift_rand\mm270k_c1_2000_rand_n10.sift.data -f E:\testsift\mm270k\sift_rand\mm270k_c1_2000_rand_n10.info.txt -n 10"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
@@ -39,7 +39,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-i e:\testpics\mm270k_512\HAWAII4\065_139.JPG -j  E:\testpics\mm270k_512_trans\crop50\065_139_146.jpg  -e E:\testsift\test\c.jpg  -f E:\testsift\test\d.jpg -t E:\testsift\test\c_d.jpg -c 0.03 -p 10 -m 100 -w 0"
+				CommandArguments="-d E:\testsift\mm270k\sift\mm270k_c1_2000_f.sift.data -i E:\testsift\mm270k\sift\mm270k_c1_2000.info.txt -o E:\testsift\mm270k\sift_rand\mm270k_c1_2000_rand_n50.sift.data -f E:\testsift\mm270k\sift_rand\mm270k_c1_2000_rand_n50.info.txt -n 50"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
