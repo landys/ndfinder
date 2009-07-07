@@ -114,6 +114,7 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="false"
 				WholeProgramOptimization="false"
+				AdditionalIncludeDirectories="E:\graphics\CASS\lshkit-0.1.9\include"
 				PreprocessorDefinitions="WIN32"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -133,7 +134,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="lshkit.lib boost_program_options.lib"
-				AdditionalLibraryDirectories="E:\projects\ndfinder\codes\trunk\Release"
+				AdditionalLibraryDirectories="E:\projects\ndfinder\codes\trunk\Release;E:\graphics\CASS\lshkit_build\lib\Release"
 				GenerateDebugInformation="true"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"

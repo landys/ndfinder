@@ -21,6 +21,7 @@ Version: 1.1.1-20070330
 #include "siftfeat.h"
 
 #include <highgui.h>
+#include <cv.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +65,7 @@ char outfileName[256] = {'\0'};	// the result file name
 // for ntfs, 64G is ok.
 const int LIMIT_POINTS_PER_FILE = 64000000;
 
-int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight);
+int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight, int maxw, int maxh);
 void saveOneImageFeatures(struct feature* pfeatures, int n, long long id);
 void saveAndCloseOutFileHeader();
 void initParameter(const char* out_file_name);
@@ -74,7 +75,7 @@ void initParameter(const char* out_file_name);
  * The image names in showSift should be less then 255, or maybe stack overflow.
 **/
 extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_file_name, int img_dbl/*=1*/, 
-								   double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
+								   double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/, int maxw/*=512*/, int maxh/*=512*/)
 {
 	initParameter(out_file_name);
 
@@ -106,8 +107,8 @@ extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_fi
 		linebuf[i+1] = '\0';
 		for (imagename=linebuf; *imagename!='\0' && (*imagename==' ' || *imagename=='\t'); ++imagename); // loop stop here, eliminate the head spaces/tabs.
 
-		//printf("%s\n", imagename);
-		int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
+		printf("%s\n", imagename);
+		int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight, maxw, maxh);
 		if (n == -1)
 		{
 			FREE(pfeatures);
@@ -133,7 +134,7 @@ extern "C" DLL_EXPORT int showSift(const char* imagenamefile, const char* out_fi
  * 
  */
 extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_name, int img_dbl/*=1*/, 
-									double contr_thr/*=0.03*/, long long id/*=0*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
+									double contr_thr/*=0.03*/, long long id/*=0*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/, int maxw/*=512*/, int maxh/*=512*/)
 {
 	initParameter(out_file_name);
 
@@ -143,7 +144,7 @@ extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_
 
 	struct feature* pfeatures = 0;
 
-	int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
+	int n = doSiftImage(imagename, &pfeatures, img_dbl, contr_thr, curv_thr, n_max, contr_weight, maxw, maxh);
 	if (n > 0) {
 		saveOneImageFeatures(pfeatures, n, id);
 		allPointsNum += n;
@@ -157,9 +158,9 @@ extern "C" DLL_EXPORT int siftImage(const char* imagename, const char* out_file_
 }
 
 extern "C" DLL_EXPORT int siftFeature(const char* imagename, struct feature** fp, int img_dbl/*=1*/, 
-									  double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/)
+									  double contr_thr/*=0.03*/, int n_max/*=0*/, double curv_thr/*=10.0*/, double contr_weight/*=1.0*/, int maxw/*=512*/, int maxh/*=512*/)
 {
-	int n = doSiftImage(imagename, fp, img_dbl, contr_thr, curv_thr, n_max, contr_weight);
+	int n = doSiftImage(imagename, fp, img_dbl, contr_thr, curv_thr, n_max, contr_weight, maxw, maxh);
 
 	return n;
 }
@@ -167,17 +168,37 @@ extern "C" DLL_EXPORT int siftFeature(const char* imagename, struct feature** fp
 /**
  * Do real sift here, and save the featured into an opened file, which passed from the caller.
 **/
-int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight)
+int doSiftImage(const char* imagename, struct feature** ppfeatures, int img_dbl, double contr_thr, double curv_thr, int n_max, double contr_weight, int maxw, int maxh)
 {
-	IplImage* img;
-	
-	img = cvLoadImage( imagename, 1 );
+	IplImage* img = cvLoadImage( imagename, 1 );
 	//	fprintf( stderr, "unable to load image from %s", img_file_name );
 
 	if(img == NULL)
 	{
 		fprintf(stderr, "unable to load image from %s, on line %d, file %s.\n", imagename, __LINE__, __FILE__);
 		return -1;
+	}
+
+	// if the width or height is bigger than maxw or maxh, resize it to maxw*maxh with oringinal ratio of width and height
+	if (img->width > maxw || img->height > maxh)
+	{
+		int width = maxw;
+		int height = maxh;
+		int iwh = img->width * height;
+		int ihw = img->height * width;
+		if (iwh > ihw)
+		{
+			height = ihw / img->width;
+		}
+		else if (iwh < ihw)
+		{
+			width = iwh / img->height;
+		}
+		IplImage* img2 = cvCreateImage(cvSize(width, height), img->depth, img->nChannels);
+		cvResize(img, img2);
+
+		cvReleaseImage(&img);
+		img = img2;
 	}
 
 	int n = _sift_features( img, ppfeatures, intvls, sigma, contr_thr, curv_thr,

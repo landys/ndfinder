@@ -76,6 +76,10 @@ int MaxNkps = 100;
 double CurThr = 10;
 double ContrWeight = 1.0;
 
+// for output results.
+const int MarkSize = 31;
+int ResultMark[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100, 120, 140, 170, 200, 240, 290, 350, 450};
+
 // a keypoint in file with id "fid" is matched with the distance "dist".
 class MatchKp
 {
@@ -154,10 +158,29 @@ string getFileNameNoExt(const string& fn)
 	return fn.substr(j+1, i-j-1);
 }
 
-bool checkMatchByFileName(const string& q, const string& r)
+string Crops[] = {"\\crop5\\", "\\crop10\\", "\\crop20\\", "\\crop30\\", "\\crop50\\", "\\crop70\\", "\\crop90\\"};
+// <0-wrong, >0-correct, and particularly -2/2-crop5, -3/3-crop10, -4/4-crop20, -5/5-crop30, -6/6-crop50, -7/7-crop70, -8/8-crop90
+int checkMatchByFileName(const string& q, const string& r)
 {
+	int t = 1;
+	for (int i=0; i<7; ++i)
+	{
+		if (r.find(Crops[i]) != -1)
+		{
+			t = i + 2;
+			break;
+		}
+	}
+
 	string rr = getFileNameNoExt(r);
-	return (rr.length() > q.length() && rr[q.length()] == '_' && rr.find(q) == 0);
+	if (rr.length() > q.length() && rr[q.length()] == '_' && rr.find(q) == 0)
+	{
+		return t;
+	}
+	else
+	{
+		return -t;
+	}
 }
 
 void queryImages(int argc, char* argv[])
@@ -183,8 +206,9 @@ void queryImages(int argc, char* argv[])
 		("contrw,w", po::value<double>(&ContrWeight)->default_value(1), "weight of contract, should be in [0,1].")
 		("topk,k", po::value<int>(&K)->default_value(60), "the top k points by every keypoint query.")
 		("distlimit,t", po::value<float>(&DistLimit)->default_value(DefaultDistLimit), "distance limit between keypoints.")
-		("downmatchlimit,g", po::value<int>(&DownMatchKpLimit)->default_value(2), "the down number of keypoints should match between near-duplicate images. it uses all matchlimit in [downmatchlimit,upmatchlimt] to calculate all precision/recall.")
-		("upmatchlimit,s", po::value<int>(&UpMatchKpLimit)->default_value(10), "the down number of keypoints should match between near-duplicate images.");
+		("downmatchlimit,g", po::value<int>(&DownMatchKpLimit)->default_value(1), "the down number of keypoints should match between near-duplicate images. it uses all matchlimit in [downmatchlimit,upmatchlimt] to calculate all precision/recall.")
+		("upmatchlimit,s", po::value<int>(&UpMatchKpLimit)->default_value(10), "the down number of keypoints should match between near-duplicate images.")
+		("querytopk,u", po::value<int>(&TopKPics)->default_value(200), "the top limit of query result pictures.");
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -225,13 +249,29 @@ void queryImages(int argc, char* argv[])
 	qlog.open(QueryLog.c_str(), ios_base::app);
 	qlog << "/******************************************************/" << endl;
 
+	// head of result
 	ofstream outRe(ResultFile.c_str());
 	outRe << "filename,sifttime,querytime";
-	for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+	//for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+	for (int i=0; i<MarkSize && ResultMark[i] <= UpMatchKpLimit; ++i)
 	{
-		outRe << boost::format(",correct%d,wrong%d") % i % i;
+		outRe << boost::format(",correct%d,wrong%d") % ResultMark[i] % ResultMark[i];
 	}
 	outRe << endl;
+
+	// head of crop result
+	string strCrop[] = {"c5", "c10", "c20", "c30", "c50", "c70", "c90"}; 
+	//ofstream outReCrop((ResultFile+"_crop.txt").c_str());
+	/*outReCrop << "filename";
+	for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+	{
+		for (int j=0; j<7; ++j)
+		{
+			outReCrop << boost::format(",%s_c%d,%s_w%d") % strCrop[j].c_str() % i % strCrop[j].c_str() % i;
+		}
+		outReCrop << boost::format(",call_c%d,call_w%d") % i % i;
+	}
+	outReCrop << endl;*/
 
 	cout << "init query..." << endl;
 	initQuery();
@@ -248,6 +288,7 @@ void queryImages(int argc, char* argv[])
 		cout << "Process pic: " << testPic.c_str() << endl;
 		qlog << "Process pic: " << testPic.c_str() << endl;
 		outRe << testPic.c_str();
+		//outReCrop << testPic.c_str();
 
 		long time = clock();
 		int Q = siftFeature(testPic.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
@@ -324,10 +365,21 @@ void queryImages(int argc, char* argv[])
 
 		// do results statistic
 		int count = 0;
-		int* corrects = new int[UpMatchKpLimit+1];
-		int* wrongs = new int[UpMatchKpLimit+1];
-		fill(&corrects[0], &corrects[UpMatchKpLimit+1], 0);
-		fill(&wrongs[0], &wrongs[UpMatchKpLimit+1], 0);
+		int corrects[MarkSize];
+		int wrongs[MarkSize];
+		fill(&corrects[0], &corrects[MarkSize], 0);
+		fill(&wrongs[0], &wrongs[MarkSize], 0);
+
+		/*int** cropCorrects = new int*[UpMatchKpLimit+1];
+		int** cropWrongs = new int*[UpMatchKpLimit+1];
+		for (int i=0; i<=UpMatchKpLimit; ++i)
+		{
+			cropCorrects[i] = new int[7];
+			cropWrongs[i] = new int[7];
+			fill(&cropCorrects[i][0], &cropCorrects[i][7], 0);
+			fill(&cropWrongs[i][0], &cropWrongs[i][7], 0);
+		}*/
+
 		vector<int> correctMatches;
 		vector<int> wrongMatches;
 		const string testPicPart = getFileNameNoExt(testPic);
@@ -341,13 +393,19 @@ void queryImages(int argc, char* argv[])
 
 			string& sr = Fnames[it->second];
 
-			if (checkMatchByFileName(testPicPart, sr))
+			int cm = checkMatchByFileName(testPicPart, sr);
+			if (cm > 0)
 			{
 				correctMatches.push_back(it->first);
-				for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+				//for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+				for (int i=0; i<MarkSize && ResultMark[i] <= UpMatchKpLimit; ++i)
 				{
-					if (it->first >= i)
+					if (it->first >= ResultMark[i])
 					{
+						/*if (cm >=2 && cm <=8)
+						{
+							++cropCorrects[i][cm-2];
+						}*/
 						++corrects[i];
 					}
 				}
@@ -355,10 +413,15 @@ void queryImages(int argc, char* argv[])
 			else
 			{
 				wrongMatches.push_back(it->first);
-				for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+				//for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+				for (int i=0; i<MarkSize && ResultMark[i] <= UpMatchKpLimit; ++i)
 				{
-					if (it->first >= i)
+					if (it->first >= ResultMark[i])
 					{
+						/*if (cm >=-8 && cm <=-2)
+						{
+							++cropWrongs[i][-cm-2];
+						}*/
 						++wrongs[i];
 					}
 				}
@@ -369,12 +432,32 @@ void queryImages(int argc, char* argv[])
 		cout << "total real match files: " << count << endl;
 		qlog << "total real match files: " << count << endl;
 
+		// result
 		outRe << boost::format(",%ld") % (clock()-time);
-		for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+
+		//for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+		for (int i=0; i<MarkSize && ResultMark[i] <= UpMatchKpLimit; ++i)
 		{
 			outRe << boost::format(",%d,%d") % corrects[i] % wrongs[i];
 		}
 		outRe << endl;
+
+		// crop result
+		/*for (int i=DownMatchKpLimit; i<=UpMatchKpLimit; ++i)
+		{
+			int sumC = 0;
+			int sumW = 0;
+			for (int j=0; j<7; ++j)
+			{
+				sumC += cropCorrects[i][j];
+				sumW += cropWrongs[i][j];
+				outReCrop << boost::format(",%d,%d") % cropCorrects[i][j] % cropWrongs[i][j];
+			}
+			outReCrop << boost::format(",%d,%d") % sumC % sumW;
+		}
+		outReCrop << endl;*/
+
+		// qlog
 		qlog << "correct matched points: " << endl;
 		for (int i=0; i<correctMatches.size(); ++i)
 		{
@@ -387,13 +470,22 @@ void queryImages(int argc, char* argv[])
 		}
 		qlog << endl;
 
+		// free memory
 		delete[] corrects;
 		delete[] wrongs;
+		/*for (int i=0; i<=UpMatchKpLimit; ++i)
+		{
+			delete[] cropCorrects[i];
+			delete[] cropWrongs[i];
+		}
+		delete[] cropCorrects;
+		delete[] cropWrongs;*/
 		free(feat);
 	}
 
 	qimgs.close();
 	outRe.close();
+	//outReCrop.close();
 	qlog.close();
 }
 
