@@ -36,7 +36,7 @@ vector<int> Parts;
 int* PCinfo = 0;
 
 void hierKMeans();
-void printLevelClusters(int level);
+void printLevelClusters(int level, const vector<int>& partClusters);
 int myKMeans2( const CvArr* samples_arr, int cluster_count,
 			  CvArr* labels_arr, CvTermCriteria termcrit );
 
@@ -46,7 +46,7 @@ void hierKMeans()
 	float* fbuf = new float[Dim];
 	for (int l=0; l<L; ++l)
 	{
-		printf("begin k-means %d level...", l);
+		printf("begin k-means %d level...\n", l+1);
 		
 		// allocate memory
 		deque<CvMat*> data;
@@ -70,17 +70,18 @@ void hierKMeans()
 
 			int cid = PCinfo[i];
 			CvMat* points = data[cid];
-			int rowind = posis[cid].size() *  points->step;
+			float* ptr = (float*)(points->data.ptr + posis[cid].size() *  points->step);
 			for (int j=0; j<ws; ++j)
 			{
-				float* ptr = (float*)(points->data.ptr + (rowind + j));
-				*ptr = fbuf[j];
+				*(ptr+j) = fbuf[j];
 			}
-			posis[PCinfo[i]].push_back(i);
+			posis[cid].push_back(i);
 		}
 
+		printf("load data finished...\n");
 		// do k-means for all partitions(clusters)
 		deque<int> newParts;
+		vector<int> partClusters(Parts.size(), 0);
 		for (int i=0; i<Parts.size(); ++i)
 		{
 			int curCluster = newParts.size();
@@ -91,6 +92,7 @@ void hierKMeans()
 					PCinfo[posis[i][j]] = curCluster;
 				}
 				newParts.push_back(Parts[i]);
+				partClusters[i] = 1;
 			}
 			else
 			{
@@ -109,10 +111,10 @@ void hierKMeans()
 				}
 
 				cvReleaseMat(&clusters);
+
+				partClusters[i] = realK;
 			}
 		}
-		
-		
 
 		// release matrices
 		for (int i=0; i<Parts.size(); ++i)
@@ -124,15 +126,15 @@ void hierKMeans()
 		Parts.resize(newParts.size(), 0);
 		copy(newParts.begin(), newParts.end(), Parts.begin());
 
-		printf("success, clusters=%d\n", Parts.size());
-
 		// print result to file
-		printLevelClusters(l);
+		printLevelClusters(l + 1, partClusters);
+
+		printf("success, clusters=%d\n", Parts.size());
 	}
 	delete[] fbuf;
 }
 
-void printLevelClusters(int level)
+void printLevelClusters(int level, const vector<int>& partClusters)
 {
 	string resultFile = str(boost::format("%s_%d.txt") % PreResultFile.c_str() % level);
 	FILE* fre = fopen(resultFile.c_str(), "w");
@@ -142,6 +144,14 @@ void printLevelClusters(int level)
 		return;
 	}
 
+	// print cluster number of each partitions
+	fprintf(fre, "%d\n", partClusters.size());
+	for (int i=0; i<partClusters.size(); ++i)
+	{
+		fprintf(fre, "%d %d\n", i, partClusters[i]);
+	}
+
+	// print information of all clusters
 	fprintf(fre, "%d\n", Parts.size());
 	for (int i=0; i<Parts.size(); ++i)
 	{
@@ -237,9 +247,17 @@ int main(int argc, char* argv[])
 	fill(PCinfo, PCinfo+N, 0);
 	if (Fparts != 0)
 	{
+		// ignore last cluster infor
 		int np = 0;
-		fscanf(Fparts, "%d", &np);
 		int cid, p;
+		fscanf(Fparts, "%d", &np);
+		for (int i=0; i<np; ++i)
+		{
+			fscanf(Fparts, "%d %d", &cid, &p);
+		}
+
+		// read partitions infor
+		fscanf(Fparts, "%d", &np);
 		Parts.resize(np, 0);
 		for (int i=0; i<np; ++i)
 		{
@@ -247,6 +265,7 @@ int main(int argc, char* argv[])
 			Parts[cid] = p;
 		}
 
+		// read cluster info of all keypoints
 		for (int i=0; i<N; ++i)
 		{
 			fscanf(Fparts, "%d", &cid);
