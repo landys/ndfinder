@@ -54,7 +54,7 @@ public:
 	float scl;
 	float ori;
 	float tfidf;
-	KeyPoint() : fid(0), x(0.0f), y(0.0f), scl(0.0f), ori(0.0f), tfidf(0.0f);
+	KeyPoint() : fid(0), x(0.0f), y(0.0f), scl(0.0f), ori(0.0f), tfidf(0.0f) {}
 };
 
 string InfoFile;
@@ -181,7 +181,7 @@ string getObjectTypeFromPath(const string& fn)
 	}
 
 	string re = fn.substr(j+1, i-j-1);
-	
+
 	i = re.find('_');
 	if (i != -1)
 	{
@@ -377,7 +377,7 @@ void queryOneImg(const string& imgfile, int type)
 
 	feature* feat = 0;
 	int n = 0; // size of sift features of test image
-	
+
 	n = siftFeature(imgfile.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
 	// word id of keypoints of query image
 	int* wids = new int[n];
@@ -388,32 +388,44 @@ void queryOneImg(const string& imgfile, int type)
 		wids[i] = queryKeypoint(feat[i].descr, type);
 		nterms[wids[i]]++;
 	}
-	
+
 	// tfidfs of keypoints of query image
 	float* tfidfs = new float[n];
 	// key - fid, value - matched keypoint id pairs, notice the first id is index of features.
 	map<int, deque<pair<float, float> > > result;
+	// factor of query image
+	//float factor = 0.0f;
 	for (int i=0; i<n; ++i)
 	{
 		int ni = wids[i];
 		tfidfs[i] = (nterms[ni] * 0.5f / n + 0.5f) * NonLeaves[ni].idf;
+		//factor += tfidfs[i] * tfidfs[i];
 
 		for (int j=0; j<NonLeaves[ni].sons.size(); ++j)
 		{
 			int id = NonLeaves[ni].sons[j].first;
-			KeyPoint kp = KeyPoints[id];
+			KeyPoint& kp = KeyPoints[id];
 			if (result.find(kp.fid) == result.end())
 			{
 				result.insert(pair<int, deque<pair<float, float> >>(kp.fid, deque<pair<float, float> >()));
 			}
-			result[kp.fid].push_back(pair<float, float>(j, id));
+			result[kp.fid].push_back(pair<float, float>(tfidfs[i], kp.tfidf));
 		}
 	}
+	//factor = sqrt((double)factor);
 
-	priority_queue<pair<int, int>, vector<pair<int, int> >, greater<pair<int, int> > > pq;
+	// key - cosine similarity, value - file id of matched file
+	priority_queue<pair<float, int>, vector<pair<float, int> >, greater<pair<float, int> > > pq;
 	for (map<int, deque<pair<float, float> > >::const_iterator it=result.begin(); it!=result.end(); ++it)
 	{
-		pq.push(pair<int, int>(it->second.size(), it->first));
+		float cosine = 0.0f;
+		for (int i=0; i<it->second.size(); ++i)
+		{
+			cosine += it->second[i].first * it->second[i].second;
+		}
+		cosine /= Factors[it->first]; // no need to divide with the factor of query image
+
+		pq.push(pair<float, int>(cosine, it->first));
 		if (pq.size() > TopK)
 		{
 			pq.pop();
@@ -426,7 +438,7 @@ void queryOneImg(const string& imgfile, int type)
 	float score = 0.0f;
 	while (!pq.empty())
 	{
-		pair<int, int> p = pq.top();
+		pair<float, int> p = pq.top();
 		string rt = getObjectTypeFromPath(Fnames[p.second]);
 		if (qt == rt)
 		{
@@ -437,7 +449,7 @@ void queryOneImg(const string& imgfile, int type)
 		{
 			++wrong;
 		}
-		
+
 		pq.pop();
 	}
 	score /= SumWi;
