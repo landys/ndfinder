@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="querylab"
-	ProjectGUID="{443E94F5-5C88-4EEF-A4D6-A4F8F561D1D9}"
-	RootNamespace="querylab"
+	Name="segimgs"
+	ProjectGUID="{6DF84A51-5610-4E44-A38B-4F8FCED43F1C}"
+	RootNamespace="segimgs"
 	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
@@ -40,8 +40,6 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="E:\graphics\CASS\lshkit-0.1.9\include"
-				PreprocessorDefinitions="WIN32"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -59,8 +57,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="lshkit_debug.lib boost_program_options_debug.lib"
-				AdditionalLibraryDirectories="E:\graphics\CASS\lshkit_build\lib\Debug;E:\projects\ndfinder\codes\trunk\Debug"
 				GenerateDebugInformation="true"
 				TargetMachine="1"
 			/>
@@ -113,8 +109,6 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="E:\graphics\CASS\lshkit-0.1.9\include"
-				PreprocessorDefinitions="WIN32"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				WarningLevel="3"
@@ -131,8 +125,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="lshkit.lib boost_program_options.lib"
-				AdditionalLibraryDirectories="E:\graphics\CASS\lshkit_build\lib\Release;E:\projects\ndfinder\codes\trunk\Release"
 				GenerateDebugInformation="true"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -170,7 +162,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\querylab.cpp"
+				RelativePath=".\segimgs.cpp"
 				>
 			</File>
 		</Filter>

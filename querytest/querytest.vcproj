@@ -60,7 +60,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="lshkit_debug.lib boost_program_options_debug.lib"
-				AdditionalLibraryDirectories="E:\projects\ndfinder\codes\trunk\Debug"
+				AdditionalLibraryDirectories="..\Debug;E:\graphics\CASS\lshkit_build\lib\Debug"
 				GenerateDebugInformation="true"
 				TargetMachine="1"
 			/>
