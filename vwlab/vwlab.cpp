@@ -32,9 +32,9 @@ class KeyPoint;
 class Node
 {
 public:
-	// if its sons are non-leaf nodes: only minimum and maximum index in the NonLeaves, so the size of sons is 2
-	// else: offset order(index) of data file for leaf node
-	vector<int> sons;
+	// if its sons are non-leaf nodes: key - only minimum and maximum index in the NonLeaves, so the size of sons is 2, value - 0.0f.
+	// else: key - offset order(index) of data file for leaf node, value - tf/idf weight.
+	vector<pair<int, float> > sons;
 	// the center of the cluster
 	float* center;
 	// number of keypoints in the cluster. if a non-leaf node, the number is sum of keypoints number of sub-clusters.
@@ -443,10 +443,11 @@ int main(int argc, char* argv[])
 		("queryimgs,q", po::value<string>(&QueryImgsFile), "the query image list.")
 		("datamap,m", po::value<string>(&InfoFile), "the map file between pictures and their keypoints.")
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
-		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file.")
+		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file containing TF/IDF weight.")
 		("resultFile,r", po::value<string>(&ResultFile), "result directory.")
 		("logfile,l", po::value<string>(&LogFile), "log file.")
 		("topk,k", po::value<int>(&TopK)->default_value(20), "top k results")
+		("maxn,n", po::value<int>(&MaxNkps)->default_value(600), "max n")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
