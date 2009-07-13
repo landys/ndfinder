@@ -465,7 +465,7 @@ void queryOneImg(const string& imgfile, int type)
 
 	delete[] wids;
 	delete[] tfidfs;
-
+	free(feat);
 }
 
 void queryLab()

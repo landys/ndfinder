@@ -479,6 +479,8 @@ void queryTest()
 			cvReleaseImage(&img);
 			cvReleaseImage(&img2);
 		}
+
+		free(feat);
 	}
 
 }
