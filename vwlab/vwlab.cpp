@@ -33,14 +33,16 @@ class Node
 {
 public:
 	// if its sons are non-leaf nodes: key - only minimum and maximum index in the NonLeaves, so the size of sons is 2, value - 0.0f.
-	// else: key - offset order(index) of data file for leaf node, value - tf/idf weight.
+	// else: key - offset order(index) of data file for leaf node, value - tf weight.
 	vector<pair<int, float> > sons;
 	// the center of the cluster
 	float* center;
 	// number of keypoints in the cluster. if a non-leaf node, the number is sum of keypoints number of sub-clusters.
 	int npoints;
+	// idf of the word
+	float idf;
 
-	Node() : center(0), npoints(0) {}
+	Node() : center(0), npoints(0), idf(0.0f) {}
 };
 
 class KeyPoint
@@ -51,6 +53,8 @@ public:
 	float y;
 	float scl;
 	float ori;
+	float tfidf;
+	KeyPoint() : fid(0), x(0.0f), y(0.0f), scl(0.0f), ori(0.0f), tfidf(0.0f);
 };
 
 string InfoFile;
@@ -68,6 +72,8 @@ ofstream Result;
 deque<KeyPoint> KeyPoints;
 // key - file id, value - file name
 map<int, string> Fnames;
+// key - fild id, value - standard factors
+map<int, float> Factors;
 // the first element is root
 deque<Node> NonLeaves;
 // all keypoints
@@ -201,6 +207,7 @@ string getFileNameNoExt(const string& fn)
 	return fn.substr(j+1, i-j-1);
 }
 
+// invoked after read InfoFile
 void readWordsFile()
 {
 	FILE* fw = fopen(WordsFile.c_str(), "r");
@@ -211,16 +218,18 @@ void readWordsFile()
 	}
 
 	fscanf(fw, "%d %d %d %d", &N, &NNodes, &RealNNodes, &Dim);
-	int id, np, sons;
+	int id, np, ns;
 	for (int i=0; i<NNodes; ++i)
 	{
 		NonLeaves.push_back(Node());
 		int ni = NonLeaves.size() - 1;
-		fscanf(fw, "%d %d %d", &id, &NonLeaves[ni].npoints, &sons);
-		NonLeaves[ni].sons.resize(sons, 0);
-		for (int j=0; j<sons; ++j)
+		fscanf(fw, "%d %d %f %d", &id, &NonLeaves[ni].npoints, &NonLeaves[ni].idf, &ns);
+		NonLeaves[ni].sons.resize(ns);
+		for (int j=0; j<ns; ++j)
 		{
-			fscanf(fw, "%d", &NonLeaves[ni].sons[j]);
+			fscanf(fw, "%d %f", &NonLeaves[ni].sons[j].first, &NonLeaves[ni].sons[j].second);
+			// get tfidf
+			KeyPoints[NonLeaves[ni].sons[j].first].tfidf = NonLeaves[ni].sons[j].second * NonLeaves[ni].idf;
 		}
 		NonLeaves[ni].center = new float[Dim];
 		for (int j=0; j<Dim; ++j)
@@ -232,6 +241,22 @@ void readWordsFile()
 	fclose(fw);
 
 	cout << "load words file finished." << endl;
+}
+
+void calFactors()
+{
+	cout << "begin calculate factors of image..." << endl;
+	for (int i=0; i<KeyPoints.size(); ++i)
+	{
+		Factors[KeyPoints[i].fid] += KeyPoints[i].tfidf * KeyPoints[i].tfidf;
+	}
+
+	for (map<int, float>::iterator it=Factors.begin(); it!=Factors.end(); ++it)
+	{
+		it->second = sqrt((double)it->second);
+	}
+
+	cout << "calculate factors of images finished: " <<  Factors.size() << endl;
 }
 
 void initQuery()
@@ -258,7 +283,11 @@ void initQuery()
 	fclose(fids);
 	cout << "load file info finished." << endl;
 
+	// read tfidf word file
 	readWordsFile();
+
+	// calculate standard factor for images
+	calFactors();
 
 	// read query image file
 	FILE* fq = fopen(QueryImgsFile.c_str(), "r");
@@ -306,7 +335,7 @@ int queryKeypoint(double* desc, int curN)
 	{
 		int nid = 0;
 		float dist = std::numeric_limits<float>::max();
-		for (int i=NonLeaves[curN].sons[0]; i<=NonLeaves[curN].sons[1]; ++i)
+		for (int i=NonLeaves[curN].sons[0].first; i<=NonLeaves[curN].sons[1].first; ++i)
 		{
 			float d = calcEud2(desc, NonLeaves[i].center);
 			if (d < dist)
@@ -348,28 +377,41 @@ void queryOneImg(const string& imgfile, int type)
 
 	feature* feat = 0;
 	int n = 0; // size of sift features of test image
-
 	
 	n = siftFeature(imgfile.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
-	// key - fid, value - matched keypoint id pairs, notice the first id is index of features.
-	map<int, deque<pair<int, int> > > result;
-	for (int j=0; j<n; ++j)
+	// word id of keypoints of query image
+	int* wids = new int[n];
+	// key - word id, value - number of words with word id in the query image
+	map<int, int> nterms;
+	for (int i=0; i<n; ++i)
 	{
-		int ni = queryKeypoint(feat[j].descr, type);
+		wids[i] = queryKeypoint(feat[i].descr, type);
+		nterms[wids[i]]++;
+	}
+	
+	// tfidfs of keypoints of query image
+	float* tfidfs = new float[n];
+	// key - fid, value - matched keypoint id pairs, notice the first id is index of features.
+	map<int, deque<pair<float, float> > > result;
+	for (int i=0; i<n; ++i)
+	{
+		int ni = wids[i];
+		tfidfs[i] = (nterms[ni] * 0.5f / n + 0.5f) * NonLeaves[ni].idf;
+
 		for (int j=0; j<NonLeaves[ni].sons.size(); ++j)
 		{
-			int id = NonLeaves[ni].sons[j];
+			int id = NonLeaves[ni].sons[j].first;
 			KeyPoint kp = KeyPoints[id];
 			if (result.find(kp.fid) == result.end())
 			{
-				result.insert(pair<int, deque<pair<int, int> >>(kp.fid, deque<pair<int, int> >()));
+				result.insert(pair<int, deque<pair<float, float> >>(kp.fid, deque<pair<float, float> >()));
 			}
-			result[kp.fid].push_back(pair<int, int>(j, id));
+			result[kp.fid].push_back(pair<float, float>(j, id));
 		}
 	}
 
 	priority_queue<pair<int, int>, vector<pair<int, int> >, greater<pair<int, int> > > pq;
-	for (map<int, deque<pair<int, int> > >::const_iterator it=result.begin(); it!=result.end(); ++it)
+	for (map<int, deque<pair<float, float> > >::const_iterator it=result.begin(); it!=result.end(); ++it)
 	{
 		pq.push(pair<int, int>(it->second.size(), it->first));
 		if (pq.size() > TopK)
@@ -409,6 +451,8 @@ void queryOneImg(const string& imgfile, int type)
 
 	Log << boost::format("%s %d %d %f") % imgfile.c_str() % correct % wrong % score << endl;
 
+	delete[] wids;
+	delete[] tfidfs;
 
 }
 

@@ -424,9 +424,9 @@ void queryTest()
 		n = siftFeature(QueryImgs[i].c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
 		// key - fid, value - matched keypoint id pairs, notice the first id is index of features.
 		map<int, deque<pair<int, int> > > result;
-		for (int j=0; j<n; ++j)
+		for (int i=0; i<n; ++i)
 		{
-			int ni = queryKeypoint(feat[j].descr);
+			int ni = queryKeypoint(feat[i].descr);
 			for (int j=0; j<NonLeaves[ni].sons.size(); ++j)
 			{
 				int id = NonLeaves[ni].sons[j];
@@ -435,7 +435,7 @@ void queryTest()
 				{
 					result.insert(pair<int, deque<pair<int, int> >>(kp.fid, deque<pair<int, int> >()));
 				}
-				result[kp.fid].push_back(pair<int, int>(j, id));
+				result[kp.fid].push_back(pair<int, int>(i, id));
 			}
 		}
 

@@ -25,14 +25,16 @@ class Node
 {
 public:
 	// if its sons are non-leaf nodes: key - only minimum and maximum index in the NonLeaves, so the size of sons is 2, value - 0.0f.
-	// else: key - offset order(index) of data file for leaf node, value - tf/idf weight.
+	// else: key - offset order(index) of data file for leaf node, value - tf weight.
 	vector<pair<int, float> > sons;
 	// the center of the cluster
 	float* center;
 	// number of keypoints in the cluster. if a non-leaf node, the number is sum of keypoints number of sub-clusters.
 	int npoints;
+	// idf of the word
+	float idf;
 
-	Node() : center(0), npoints(0) {}
+	Node() : center(0), npoints(0), idf(0.0f) {}
 };
 
 class KeyPoint
@@ -125,10 +127,10 @@ void printTfIdfWordsFile()
 	fprintf(fw, "%d %d %d %d\n", N, NonLeaves.size(), RealNNodes, Dim);
 	for (int i=0; i<NonLeaves.size(); ++i)
 	{
-		fprintf(fw, "%d %d %d ", i, NonLeaves[i].npoints, NonLeaves[i].sons.size());
+		fprintf(fw, "%d %d %g %d ", i, NonLeaves[i].npoints, NonLeaves[i].idf, NonLeaves[i].sons.size());
 		for (int j=0; j<NonLeaves[i].sons.size(); ++j)
 		{
-			fprintf(fw, "%d %f ", NonLeaves[i].sons[j].first, NonLeaves[i].sons[j].second);
+			fprintf(fw, "%d %g ", NonLeaves[i].sons[j].first, NonLeaves[i].sons[j].second);
 		}
 		for (int j=0; j<Dim; ++j)
 		{
@@ -208,10 +210,12 @@ void genTiIdf()
 			fn[fid]++;
 		}
 
+		float idf = log((double)N / ni);
+		NonLeaves[i].idf = idf;
 		for (int j=0; j<ns; ++j)
 		{
 			int fid = KeyPoints[sons[j].first].fid;
-			sons[j].second = (float)fn[fid] / Fkps[fid] * log((double)N / ni); // tf/idf
+			sons[j].second = (float)fn[fid] / Fkps[fid]; // only tf
 		}
 	}
 
