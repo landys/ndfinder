@@ -22,6 +22,7 @@ namespace po = boost::program_options;
 string ImgsFile;
 string ResultFile;
 int Nc;
+// key - category type, value - image list
 map<string, deque<string> > Imgs;
 // 1, 2
 map<string, int > Types;
@@ -128,7 +129,7 @@ int main(int argc, char* argv[])
 	desc.add_options()
 		("help,h", "produce help message.")
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
-		("result,r", po::value<string>(&ResultFile), "sift visual words index file.")
+		("result,r", po::value<string>(&ResultFile), "the result query image list.")
 		("nc,n", po::value<int>(&Nc)->default_value(10), "images per category.")
 		;
 	po::variables_map vm;

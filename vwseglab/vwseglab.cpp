@@ -15,6 +15,7 @@
 #include <numeric>
 #include <utility>
 #include <functional>
+#include <ctime>
 #include "../sift/siftfeat.h"
 #include "../sift/imgfeatures.h"
 using namespace std;
@@ -54,6 +55,7 @@ public:
 	float scl;
 	float ori;
 	float tfidf;
+	vector<int> segs;
 	KeyPoint() : fid(0), x(0.0f), y(0.0f), scl(0.0f), ori(0.0f), tfidf(0.0f) {}
 };
 
@@ -64,6 +66,7 @@ string ResultDir;
 string ResultFile;
 string LogFile;
 string QueryImgsFile;
+string SegFile;
 
 ofstream Log;
 ofstream Result;
@@ -86,10 +89,10 @@ int RealNNodes;
 int Dim;
 // the number of nodes to be watched.
 int NWatched;
-// query image list read from file
-deque<string> QueryImgs1;
-// query image list read from file
-deque<string> QueryImgs2;
+// query image list read from file, first - image id, second - image file name
+deque<pair<int, string> > QueryImgs1;
+// query image list read from file, first - image id, second - image file name
+deque<pair<int, string> > QueryImgs2;
 // partition id
 int PartId;
 // top k query
@@ -101,6 +104,7 @@ public:
 	int correct;
 	int wrong;
 	float sumScore;
+	long sumTime;
 
 	Score() : correct(0), wrong(0), sumScore(0.0f) {}
 
@@ -115,8 +119,13 @@ public:
 	{
 		return (correct + wrong == 0) ? 0 : sumScore * TopK / (correct + wrong);
 	}
+
+	long qtime() const
+	{
+		return (correct + wrong == 0) ? 0 : sumTime * TopK / (correct + wrong);
+	}
 };
-// result scores, string-category type, score-score of category
+// result scores, key-category type, value-score of category
 map<string, Score> Scores;
 
 int Interval = 20;
@@ -283,6 +292,26 @@ void initQuery()
 	fclose(fids);
 	cout << "load file info finished." << endl;
 
+	FILE* fseg = fopen(SegFile.c_str(), "r");
+	if (fseg == 0)
+	{
+		printf("Cannot open %s for read.\n", SegFile.c_str());
+		return ;
+	}
+	int nseg, segid;
+	int count = 0;
+	while (fscanf(fseg, "%d %d %d", &id, &fid, &nseg) != EOF)
+	{
+		for (int i=0; i<nseg; ++i)
+		{
+			fscanf(fseg, "%d", &segid);
+			KeyPoints[count].segs.push_back(segid);
+		}
+		++count;
+	}
+	fclose(fseg);
+	cout << "load segmentation info finished." << endl;
+
 	// read tfidf word file
 	readWordsFile();
 
@@ -292,15 +321,15 @@ void initQuery()
 	// read query image file
 	FILE* fq = fopen(QueryImgsFile.c_str(), "r");
 	int type;
-	while (fscanf(fimg, "%d %s", &type, buf) != EOF)
+	while (fscanf(fimg, "%d %d %s", &type, &id, buf) != EOF)
 	{
 		if (type == 1)
 		{
-			QueryImgs1.push_back(string(buf));
+			QueryImgs1.push_back(pair<int, string>(id, string(buf)));
 		}
 		else
 		{
-			QueryImgs2.push_back(string(buf));
+			QueryImgs2.push_back(pair<int, string>(id, string(buf)));
 		}
 	}
 	fclose(fq);
@@ -371,14 +400,17 @@ void copyFile(const string& src, const string& des)
 }
 
 
-void queryOneImg(const string& imgfile, int type)
+void queryOneImg(int imgId, const string& imgfile, int type)
 {
 	printf("Query %s...\n", imgfile.c_str());
 
+	long time1 = clock();
 	feature* feat = 0;
 	int n = 0; // size of sift features of test image
 
 	n = siftFeature(imgfile.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
+	long time2 = clock();
+
 	// word id of keypoints of query image
 	int* wids = new int[n];
 	// key - word id, value - number of words with word id in the query image
@@ -461,7 +493,9 @@ void queryOneImg(const string& imgfile, int type)
 	}
 	Scores[category].add(correct, wrong, score);
 
-	Log << boost::format("%s %d %d %f") % imgfile.c_str() % correct % wrong % score << endl;
+	long time3 = clock();
+
+	Log << boost::format("%s %d %d %f %ld %ld %ld") % imgfile.c_str() % correct % wrong % score % (time3-time1) % (time2-time1) % (time3-time2) << endl;
 
 	delete[] wids;
 	delete[] tfidfs;
@@ -472,12 +506,12 @@ void queryLab()
 {
 	for (int i=0; i<QueryImgs1.size(); ++i)
 	{
-		queryOneImg(QueryImgs1[i], 1);
+		queryOneImg(QueryImgs1[i].first, QueryImgs1[i].second, 1);
 	}
 
 	for (int i=0; i<QueryImgs2.size(); ++i)
 	{
-		queryOneImg(QueryImgs2[i], 2);
+		queryOneImg(QueryImgs2[i].first, QueryImgs2[i].second, 2);
 	}
 
 	for (map<string, Score>::const_iterator it=Scores.begin(); it!=Scores.end(); ++it)
@@ -496,10 +530,11 @@ int main(int argc, char* argv[])
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message.")
-		("queryimgs,q", po::value<string>(&QueryImgsFile), "the query image list file with type.")
+		("queryimgs,q", po::value<string>(&QueryImgsFile), "the query image list file with type and ids.")
 		("datamap,m", po::value<string>(&InfoFile), "the map file between pictures and their keypoints.")
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
 		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file containing TF/IDF weight.")
+		("segfile,s", po::value<string>(&SegFile), "segmentation info file.")
 		("resultFile,r", po::value<string>(&ResultFile), "result directory.")
 		("logfile,l", po::value<string>(&LogFile), "log file.")
 		("topk,k", po::value<int>(&TopK)->default_value(20), "top k results")
@@ -510,7 +545,7 @@ int main(int argc, char* argv[])
 	po::notify(vm);
 
 	if (vm.count("help") > 0 || vm.count("queryimgs") == 0 || vm.count("datamap") == 0 || vm.count("imgslist") == 0
-		|| vm.count("wordfile") == 0 || vm.count("resultFile") == 0 || vm.count("logfile") == 0)
+		|| vm.count("wordfile") == 0 || vm.count("segfile") == 0 || vm.count("resultFile") == 0 || vm.count("logfile") == 0)
 	{
 		cout << desc;
 		return 1;
@@ -518,8 +553,8 @@ int main(int argc, char* argv[])
 
 	Log.open(LogFile.c_str(), ios_base::app);
 	Result.open(ResultFile.c_str());
-	Log << "filename correct wrong score" << endl;
-	Result << "category correct wrong score" << endl;
+	Log << "filename correct wrong score total_time sift_time query_time" << endl;
+	Result << "category correct wrong score total_time sift_time query_time" << endl;
 
 	initQuery();
 

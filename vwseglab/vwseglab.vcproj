@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="vwseg"
-	ProjectGUID="{D2B68260-6FB1-4EDC-8ED2-A3434AAD581E}"
-	RootNamespace="vmseg"
+	Name="vwseglab"
+	ProjectGUID="{FC05F68A-A2AF-47C1-9167-F7AB4E5E8CD5}"
+	RootNamespace="vwseglab"
 	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
@@ -164,7 +164,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\vmseg.cpp"
+				RelativePath=".\vwseglab.cpp"
 				>
 			</File>
 		</Filter>

@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="vwseg"
-	ProjectGUID="{D2B68260-6FB1-4EDC-8ED2-A3434AAD581E}"
-	RootNamespace="vmseg"
+	Name="genIdsOfRandQueryImgs"
+	ProjectGUID="{CAE02C0F-F303-45A4-B0A7-FC0C0281E20B}"
+	RootNamespace="genIdsOfRandQureyImgs"
 	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
@@ -164,7 +164,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\vmseg.cpp"
+				RelativePath=".\genIdsOfRandQueryImgs.cpp"
 				>
 			</File>
 		</Filter>
