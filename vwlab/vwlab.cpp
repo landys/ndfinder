@@ -15,6 +15,7 @@
 #include <numeric>
 #include <utility>
 #include <functional>
+#include <ctime>
 #include "../sift/siftfeat.h"
 #include "../sift/imgfeatures.h"
 using namespace std;
@@ -101,20 +102,24 @@ public:
 	int correct;
 	int wrong;
 	float sumScore;
+	long sumSiftTime; // ms
+	long sumTotalTime; // ms
 
-	Score() : correct(0), wrong(0), sumScore(0.0f) {}
+	Score() : correct(0), wrong(0), sumScore(0.0f), sumSiftTime(0), sumTotalTime(0) {}
 
-	void add(int correct, int wrong, float score)
+	void add(int correct, int wrong, float score, long siftTime, long totalTime)
 	{
 		this->correct += correct;
 		this->wrong += wrong;
 		this->sumScore += score;
+		this->sumSiftTime += siftTime;
+		this->sumTotalTime += totalTime;
 	}
 
-	float score() const
-	{
-		return (correct + wrong == 0) ? 0 : sumScore * TopK / (correct + wrong);
-	}
+	// get average score of the category type
+	float score() const{ return (correct + wrong == 0) ? 0 : sumScore * TopK / (correct + wrong); }
+	long siftTime() const { return (correct + wrong == 0) ? 0 : sumSiftTime * TopK / (correct + wrong); }
+	long totalTime() const { return (correct + wrong == 0) ? 0 : sumTotalTime * TopK / (correct + wrong); }
 };
 // result scores, string-category type, score-score of category
 map<string, Score> Scores;
@@ -374,11 +379,14 @@ void copyFile(const string& src, const string& des)
 void queryOneImg(const string& imgfile, int type)
 {
 	printf("Query %s...\n", imgfile.c_str());
+	long time1 = clock();
 
 	feature* feat = 0;
 	int n = 0; // size of sift features of test image
 
 	n = siftFeature(imgfile.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
+
+	long time2 = clock();
 	// word id of keypoints of query image
 	int* wids = new int[n];
 	// key - word id, value - number of words with word id in the query image
@@ -414,7 +422,8 @@ void queryOneImg(const string& imgfile, int type)
 	}
 	//factor = sqrt((double)factor);
 
-	// key - cosine similarity, value - file id of matched file
+	// key - cosine similarity, value - file id of matched file. small value first in priority_queue.
+	// for cosine similarity, bigger value means more similar
 	priority_queue<pair<float, int>, vector<pair<float, int> >, greater<pair<float, int> > > pq;
 	for (map<int, deque<pair<float, float> > >::const_iterator it=result.begin(); it!=result.end(); ++it)
 	{
@@ -431,7 +440,9 @@ void queryOneImg(const string& imgfile, int type)
 			pq.pop();
 		}
 	}
+	long time3 = clock();
 
+	// calculate scores
 	string qt = getObjectTypeFromPath(imgfile);
 	int correct = 0;
 	int wrong = 0;
@@ -459,9 +470,9 @@ void queryOneImg(const string& imgfile, int type)
 	{
 		Scores[category] = Score();
 	}
-	Scores[category].add(correct, wrong, score);
+	Scores[category].add(correct, wrong, score, time2-time1, time3-time1);
 
-	Log << boost::format("%s %d %d %f") % imgfile.c_str() % correct % wrong % score << endl;
+	Log << boost::format("%s %d %d %f %ld %ld %ld") % imgfile.c_str() % correct % wrong % score % (time3-time1) % (time2-time1) % (time3-time2) << endl;
 
 	delete[] wids;
 	delete[] tfidfs;
@@ -485,7 +496,9 @@ void queryLab()
 		int correct = it->second.correct;
 		int wrong = it->second.wrong;
 		float score = it->second.score();
-		Result << boost::format("%s %d %d %f") % it->first % correct % wrong % score << endl;
+		long siftTime = it->second.siftTime();
+		long totalTime = it->second.totalTime();
+		Result << boost::format("%s %d %d %f %ld %ld %ld") % it->first % correct % wrong % score % totalTime % siftTime % (totalTime-siftTime) << endl;
 	}
 }
 
@@ -518,8 +531,8 @@ int main(int argc, char* argv[])
 
 	Log.open(LogFile.c_str(), ios_base::app);
 	Result.open(ResultFile.c_str());
-	Log << "filename correct wrong score" << endl;
-	Result << "category correct wrong score" << endl;
+	Log << "filename correct wrong score total_time sift_time query_time" << endl;
+	Result << "category correct wrong score total_time sift_time query_time" << endl;
 
 	initQuery();
 

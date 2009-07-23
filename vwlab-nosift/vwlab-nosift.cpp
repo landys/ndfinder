@@ -46,7 +46,6 @@ public:
 	float ori;
 	float tfidf;
 	int cid; // cluster id, each keypoint belongs to only one cluster
-	vector<int> segs;
 	KeyPoint() : fid(0), x(0.0f), y(0.0f), scl(0.0f), ori(0.0f), tfidf(0.0f) {}
 };
 
@@ -57,7 +56,6 @@ string ResultDir;
 string ResultFile;
 string LogFile;
 string QueryImgsFile;
-string SegFile;
 
 ofstream Log;
 ofstream Result;
@@ -70,17 +68,6 @@ public:
 	vector<int> kps; // keypoint ids
 	ImageInfo() : factor(0.0f) {}
 };
-
-/*class MatchPair
-{
-public:
-	// first-seg id of a file
-	int segId1;
-	int segId2;
-	// keypoints matched between the two regions, so the size of kps1 and kps2 is the same.
-	vector<int> kps1;
-	vector<int> kps2;
-};*/
 
 // all keypoints in dataset, index is keypoint id, value is file id.
 deque<KeyPoint> KeyPoints;
@@ -106,12 +93,6 @@ deque<pair<int, string> > QueryImgs2;
 int PartId;
 // top k query
 int TopK;
-// Lambda of the similarity
-float Lambda;
-// Piu of the similarity
-float Piu;
-// limit of matched segment regions
-int MatchLimit;
 
 class Score
 {
@@ -138,7 +119,7 @@ public:
 	long siftTime() const { return (correct + wrong == 0) ? 0 : sumSiftTime * TopK / (correct + wrong); }
 	long totalTime() const { return (correct + wrong == 0) ? 0 : sumTotalTime * TopK / (correct + wrong); }
 };
-// result scores, key-category type, value-score of category
+// result scores, string-category type, score-score of category
 map<string, Score> Scores;
 
 int Interval = 20;
@@ -265,7 +246,7 @@ void readWordsFile()
 				fscanf(fw, "%d %f", &NonLeaves[i].sons[j].first, &NonLeaves[i].sons[j].second);
 			}
 		}
-
+		
 		NonLeaves[i].center = new float[Dim];
 		for (int j=0; j<Dim; ++j)
 		{
@@ -319,26 +300,6 @@ void initQuery()
 
 	fclose(fids);
 	cout << "load file info finished." << endl;
-
-	FILE* fseg = fopen(SegFile.c_str(), "r");
-	if (fseg == 0)
-	{
-		printf("Cannot open %s for read.\n", SegFile.c_str());
-		return ;
-	}
-	int nseg, segid;
-	count = 0;
-	while (fscanf(fseg, "%d %d %d", &id, &fid, &nseg) != EOF)
-	{
-		for (int i=0; i<nseg; ++i)
-		{
-			fscanf(fseg, "%d", &segid);
-			KeyPoints[count].segs.push_back(segid);
-		}
-		++count;
-	}
-	fclose(fseg);
-	cout << "load segmentation info finished." << endl;
 
 	// read tfidf word file
 	readWordsFile();
@@ -427,207 +388,32 @@ void copyFile(const string& src, const string& des)
 	fclose(fd);
 }
 
-// calculate difference value of orientations of p and q, which is q-p accually.
-float calcOriDiff(const vector<int>& p, const vector<int>& q)
-{
-	int n = min(p.size(), q.size());
-
-	float sumd = 0.0f;
-	float sumscl = 0.0f;
-	for (int i=0; i<n; ++i)
-	{
-		float ascl = (KeyPoints[p[i]].scl + KeyPoints[q[i]].scl) / 2;
-		float dori = KeyPoints[q[i]].ori - KeyPoints[p[i]].ori;
-		sumd += ascl * dori;
-		sumscl += ascl;
-	}
-
-	return sumd / sumscl;
-}
-
-// sort for Mg
-class GeoSerial
-{
-public:
-	float x;
-	float y;
-	int ser;
-	GeoSerial() : x(0.0f), y(0.0f), ser(0) {}
-	GeoSerial(float x, float y, int ser) : x(x), y(y), ser(ser) {}
-};
-
-class CompGsX
-{
-public:
-	bool operator() (const GeoSerial& gs1, const GeoSerial& gs2)
-	{
-		return gs1.x < gs2.x;
-	}
-};
-
-class CompGsY
-{
-public:
-	bool operator() (const GeoSerial& gs1, const GeoSerial& gs2)
-	{
-		return gs1.y < gs2.y;
-	}
-};
-
-
-// dori = oriq - orip
-int calcMg(const vector<int>& p, const vector<int>& q, float dori)
-{
-	int n = min(p.size(), q.size());
-	if (n <= 1)
-	{
-		return 0.0f;
-	}
-
-	// rotate p by angle dori
-	float dcos = cos((double)dori);
-	float dsin = sin((double)dori);
-	vector<GeoSerial> gp(n);
-	vector<GeoSerial> gq(n);
-	for (int i=0; i<n; ++i)
-	{
-		gp[i].x = KeyPoints[p[i]].x * dcos - KeyPoints[p[i]].y * dsin;
-		gp[i].y = KeyPoints[p[i]].x * dsin + KeyPoints[p[i]].y * dcos;
-		gp[i].ser = i;
-	}
-
-	// calc mgx
-	sort(gp.begin(), gp.end(), CompGsX());
-	for (int i=0; i<n; ++i)
-	{
-		gq[gp[i].ser].x = KeyPoints[q[i]].x;
-		gq[gp[i].ser].y = KeyPoints[q[i]].y;
-		gq[i].ser = i;
-	}
-	sort(gq.begin(), gq.end(), CompGsX());
-	int mgx = 0;
-	for (int i=0; i<n-1; ++i)
-	{
-		if (gq[i+1].ser < gq[i].ser)
-		{
-			mgx -= 1;
-		}
-	}
-
-	// calc mgy
-	sort(gp.begin(), gp.end(), CompGsY());
-	for (int i=0; i<n; ++i)
-	{
-		gq[gp[i].ser].x = KeyPoints[q[i]].x;
-		gq[gp[i].ser].y = KeyPoints[q[i]].y;
-		gq[i].ser = i;
-	}
-	sort(gq.begin(), gq.end(), CompGsY());
-	int mgy = 0;
-	for (int i=0; i<n-1; ++i)
-	{
-		if (gq[i+1].ser < gq[i].ser)
-		{
-			mgy -= 1;
-		}
-	}
-
-	return min(mgx, mgy);
-}
-
-//void gauss_normalization(float* arr, int n)
-//{
-//	if (n == 0)
-//	{
-//		return;
-//	}
-//
-//	int i = 0;
-//	float total = 0.0;
-//	for (i=0; i<n; ++i)
-//	{
-//		total += arr[i];
-//	}
-//	float avr = total / n;
-//
-//	total = 0.0;
-//	for (i=0; i<n; ++i)
-//	{
-//		total += (arr[i] - avr) * (arr[i] - avr);
-//	}
-//	float len = total != 0 ? 1.0 / sqrt(total) : 1.0;
-//
-//	for (i=0; i<n; ++i)
-//	{
-//		arr[i] = ((arr[i] - avr) * len + 1.0) / 2;
-//	}
-//}
-
-const double Pi = 3.14159265;
-float calcMd(const vector<int>& p, const vector<int>& q, float dori)
-{
-	int n = min(p.size(), q.size());
-	if (n <= 1)
-	{
-		return 0.0f;
-	}
-
-	// normalize "/ (4 * Pi) + 0.5" to [0, 1].
-	float* oris = new float[n];
-	for (int i=0; i<n; ++i)
-	{
-		oris[i] = (KeyPoints[q[i]].ori - KeyPoints[p[i]].ori) / (4 * Pi) + 0.5;
-	}
-	//gauss_normalization(oris, n);
-
-	//float sum = 0.0f;
-	//for (int i=0; i<n; ++i)
-	//{
-	//	sum += oris[i];
-	//}
-	//float aver = sum / n;
-
-	float aver = dori / (4 * Pi) + 0.5;
-	float sum = 0.0f;
-	for (int i=0; i<n; ++i)
-	{
-		sum += (oris[i] - aver) * (oris[i] - aver);
-	}
-
-	delete[] oris;
-	return -sqrt((double)(sum / n));
-}
-
 
 void queryOneImg(int imgId, const string& imgfile, int type)
 {
 	printf("Query %s...\n", imgfile.c_str());
-
 	long time1 = clock();
+
 	//feature* feat = 0;
 	//int n = 0; // size of sift features of test image
 
 	//n = siftFeature(imgfile.c_str(), &feat, DoubleImg, ContrThr, MaxNkps, CurThr, ContrWeight);
-	long time2 = clock();
 
+	long time2 = clock();
 	// word id of keypoints of query image
 	//int* wids = new int[n];
-	//// key - word id, value - number of words with word id in the query image
-	//map<int, int> nterms;
-	//for (int i=0; i<n; ++i)
-	//{
-	//	wids[i] = queryKeypoint(feat[i].descr, type);
-	//	nterms[wids[i]]++;
-	//}
+	// key - word id, value - number of words with word id in the query image
+	/*map<int, int> nterms;
+	for (int i=0; i<n; ++i)
+	{
+		wids[i] = queryKeypoint(feat[i].descr, type);
+		nterms[wids[i]]++;
+	}*/
 
-	//// tfidfs of keypoints of query image
+	// tfidfs of keypoints of query image
 	//float* tfidfs = new float[n];
-	// key - fid, value - matched keypoint id pairs, notice the first id is index of features.
-	//map<int, deque<pair<float, float> > > result;
-
-	// key-fid, value-(key-(first-segId of query image, second-segId of matched image), 
-	// value-(first-matched keypoints of seg of query image, second-matched keypoints of seg of matched image))
-	map<int, map<pair<int, int>, pair<vector<int>, vector<int> > > > result;
+	// key - fid, value - tfidfs of matched keypoint id pairs, notice the first id is index of features.
+	map<int, deque<pair<float, float> > > result;
 	// factor of query image
 	//float factor = 0.0f;
 	vector<int>& kps = ImgInfos[imgId].kps;
@@ -638,74 +424,31 @@ void queryOneImg(int imgId, const string& imgfile, int type)
 		//tfidfs[i] = (nterms[ni] * 0.5f / n + 0.5f) * NonLeaves[ni].idf;
 		//factor += tfidfs[i] * tfidfs[i];
 
-		KeyPoint& qk = KeyPoints[kps[i]];
-		if (qk.segs.size() == 0)
-		{
-			// the keypoint belongs no segs, so ignored
-			continue;
-		}
-
-		int ni = qk.cid;
+		int ni = KeyPoints[kps[i]].cid;
 		for (int j=0; j<NonLeaves[ni].sons.size(); ++j)
 		{
 			int id = NonLeaves[ni].sons[j].first;
 			KeyPoint& kp = KeyPoints[id];
-			for (int si=0; si<kp.segs.size(); ++si)
+			if (result.find(kp.fid) == result.end())
 			{
-				for (int sj=0; sj<qk.segs.size(); ++sj)
-				{
-					pair<vector<int>, vector<int> >& rp = result[kp.fid][pair<int, int>(qk.segs[sj], kp.segs[si])];
-					rp.first.push_back(kps[i]);
-					rp.second.push_back(id);
-				}
+				result.insert(pair<int, deque<pair<float, float> >>(kp.fid, deque<pair<float, float> >()));
 			}
-			//if (result.find(kp.fid) == result.end())
-			//{
-			//	result.insert(pair<int, deque<pair<float, float> >>(kp.fid, deque<pair<float, float> >()));
-			//}
-			////result[kp.fid].push_back(pair<float, float>(tfidfs[i], kp.tfidf));
-			//result[kp.fid].push_back(pair<float, float>(KeyPoints[kps[i]].tfidf, kp.tfidf));
+			//result[kp.fid].push_back(pair<float, float>(tfidfs[i], kp.tfidf));
+			result[kp.fid].push_back(pair<float, float>(KeyPoints[kps[i]].tfidf, kp.tfidf));
 		}
 	}
 	//factor = sqrt((double)factor);
 
-	// key - similarity value, value - file id of matched file. small value first in priority_queue.
-	// for similarity value, bigger value means more similar
+	// key - cosine similarity, value - file id of matched file. small value first in priority_queue.
+	// for cosine similarity, bigger value means more similar
 	priority_queue<pair<float, int>, vector<pair<float, int> >, greater<pair<float, int> > > pq;
-	for (map<int, map<pair<int, int>, pair<vector<int>, vector<int> > > >::const_iterator it=result.begin(); it!=result.end(); ++it)
+	for (map<int, deque<pair<float, float> > >::const_iterator it=result.begin(); it!=result.end(); ++it)
 	{
 		float cosine = 0.0f;
-		for (map<pair<int, int>, pair<vector<int>, vector<int> > >::const_iterator it2=it->second.begin(); it2!=it->second.end(); ++it2)
+		for (int i=0; i<it->second.size(); ++i)
 		{
-			if (it2->second.first.size() < MatchLimit)
-			{
-				continue;
-			}
-			const vector<int>& vp = it2->second.first;
-			const vector<int>& vq = it2->second.second;
-			float dori = calcOriDiff(vp, vq);
-			int mm = vp.size();
-			int mg = calcMg(vp, vq, dori);
-			float md = calcMd(vp, vq, dori);
-
-			float mall = mm + Lambda * mg + Piu * mm * md;
-			// mall < 0 is meanless
-			if (mall < 0.0f)
-			{
-				mall = 0.0f;
-			}
-
-			for (int i=0; i<mm; ++i)
-			{
-				cosine += mall * KeyPoints[vp[i]].tfidf * KeyPoints[vq[i]].tfidf / mm;
-			}
+			cosine += it->second[i].first * it->second[i].second;
 		}
-
-		//float cosine = 0.0f;
-		//for (int i=0; i<it->second.size(); ++i)
-		//{
-		//	cosine += it->second[i].first * it->second[i].second;
-		//}
 		cosine /= ImgInfos[it->first].factor; // no need to divide with the factor of query image
 
 		pq.push(pair<float, int>(cosine, it->first));
@@ -745,7 +488,6 @@ void queryOneImg(int imgId, const string& imgfile, int type)
 		Scores[category] = Score();
 	}
 	Scores[category].add(correct, wrong, score, time2-time1, time3-time1);
-
 
 	Log << boost::format("%s %d %d %f %ld %ld %ld") % imgfile.c_str() % correct % wrong % score % (time3-time1) % (time2-time1) % (time3-time2) << endl;
 
@@ -788,12 +530,8 @@ int main(int argc, char* argv[])
 		("datamap,m", po::value<string>(&InfoFile), "the map file between pictures and their keypoints.")
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
 		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file containing TF/IDF weight.")
-		("segfile,s", po::value<string>(&SegFile), "segmentation info file.")
 		("resultFile,r", po::value<string>(&ResultFile), "result directory.")
 		("logfile,l", po::value<string>(&LogFile), "log file.")
-		("lambda,d", po::value<float>(&Lambda)->default_value(2.0f), "lamdda of similarity expression.")
-		("Piu,p", po::value<float>(&Piu)->default_value(1.0f), "Piu of similarity expression.")
-		("matchlimit,t", po::value<int>(&MatchLimit)->default_value(2), "limit of keypoints of matched regions.")
 		("topk,k", po::value<int>(&TopK)->default_value(20), "top k results")
 		("maxn,n", po::value<int>(&MaxNkps)->default_value(600), "max n")
 		;
@@ -802,7 +540,7 @@ int main(int argc, char* argv[])
 	po::notify(vm);
 
 	if (vm.count("help") > 0 || vm.count("queryimgs") == 0 || vm.count("datamap") == 0 || vm.count("imgslist") == 0
-		|| vm.count("wordfile") == 0 || vm.count("segfile") == 0 || vm.count("resultFile") == 0 || vm.count("logfile") == 0)
+		|| vm.count("wordfile") == 0 || vm.count("resultFile") == 0 || vm.count("logfile") == 0)
 	{
 		cout << desc;
 		return 1;

@@ -67,6 +67,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vwseglab", "vwseglab\vwsegl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genIdsOfRandQueryImgs", "genIdsOfRandQureyImgs\genIdsOfRandQureyImgs.vcproj", "{CAE02C0F-F303-45A4-B0A7-FC0C0281E20B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vwlab-nosift", "vwlab-nosift\vwlab-nosift.vcproj", "{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Itanium = Debug|Itanium
@@ -310,6 +312,14 @@ Global
 		{CAE02C0F-F303-45A4-B0A7-FC0C0281E20B}.Release|Win32.ActiveCfg = Release|Win32
 		{CAE02C0F-F303-45A4-B0A7-FC0C0281E20B}.Release|Win32.Build.0 = Release|Win32
 		{CAE02C0F-F303-45A4-B0A7-FC0C0281E20B}.Release|x64.ActiveCfg = Release|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Debug|Itanium.ActiveCfg = Debug|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Debug|Win32.Build.0 = Debug|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Debug|x64.ActiveCfg = Debug|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Release|Itanium.ActiveCfg = Release|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Release|Win32.ActiveCfg = Release|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Release|Win32.Build.0 = Release|Win32
+		{E6F7B2D5-3E81-4FDE-90EA-F4AB3898E655}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
