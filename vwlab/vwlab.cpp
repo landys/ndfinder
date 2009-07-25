@@ -63,11 +63,13 @@ string ImgsFile;
 string WordsFile;
 string ResultDir;
 string ResultFile;
+string ReDetailFile;
 string LogFile;
 string QueryImgsFile;
 
 ofstream Log;
 ofstream Result;
+ofstream Detail;
 
 // all keypoints in dataset, index is keypoint id, value is file id.
 deque<KeyPoint> KeyPoints;
@@ -514,6 +516,7 @@ int main(int argc, char* argv[])
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
 		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file containing TF/IDF weight.")
 		("resultFile,r", po::value<string>(&ResultFile), "result directory.")
+		("resultDetail,v", po::value<string>(&ReDetailFile), "result detail: matched image ids of each query images.")
 		("logfile,l", po::value<string>(&LogFile), "log file.")
 		("topk,k", po::value<int>(&TopK)->default_value(20), "top k results")
 		("maxn,n", po::value<int>(&MaxNkps)->default_value(600), "max n")
@@ -529,10 +532,11 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	Log.open(LogFile.c_str(), ios_base::app);
+	Log.open(LogFile.c_str());
 	Result.open(ResultFile.c_str());
 	Log << "filename correct wrong score total_time sift_time query_time" << endl;
 	Result << "category correct wrong score total_time sift_time query_time" << endl;
+	Detail.open(ReDetailFile.c_str());
 
 	initQuery();
 
@@ -543,5 +547,6 @@ int main(int argc, char* argv[])
 
 	Log.close();
 	Result.close();
+	Detail.close();
 	return 0;
 }

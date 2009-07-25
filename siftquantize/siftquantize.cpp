@@ -11,7 +11,7 @@
 using namespace std;
 namespace po = boost::program_options; 
 
-#pragma comment(lib, "cxcore.lib")
+#pragma comment(lib, "cxcore_64.lib")
 
 const int HeaderSize = 12;
 const int RowNumOffset = 4;

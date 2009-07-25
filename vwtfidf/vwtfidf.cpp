@@ -190,7 +190,7 @@ float calcEud2(double* a, float* b)
 }
 
 
-void genTiIdf()
+void genTfIdf()
 {
 	int begLeaf = NNodes - RealNNodes;
 	for (int i=begLeaf; i<NNodes; ++i)
@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
 	initQuery();
 
 	printf("begin generate tf/idf...\n");
-	genTiIdf();
+	genTfIdf();
 
 	releaseMemory();
 

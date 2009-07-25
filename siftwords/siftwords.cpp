@@ -30,24 +30,19 @@ public:
 const int HeaderSize = 12;
 const int RowNumOffset = 4;
 int L = 5;
-int N1 = 0;
-int N2 = 0;
-int BegClus1 = 0;
-int BegClus2 = 0;
-int NClus1 = 0;
-int NClus2 = 0;
+int N = 0;
+int BegClus = 0;
+int NClus = 0;
 int Dim = 0;
-string DataFile1;
-string DataFile2;
-string PreClusFile1;
-string PreClusFile2;
+string DataFile;
+string PreClusFile;
 string WordsFile;
 
 // the first element is root
 deque<Node> NonLeaves;
 
 void readPartInfoFromData(const string& dataFile, int& n);
-void readInfoFromDatas();
+//void readInfoFromDatas();
 string getClusterName(const string& preClusFile, int level);
 void readInterLevelCluster(FILE* fc, int& curClusterId);
 void readLastLevelCluster(FILE* fc, int begN, int n, int& begClus, int& nClus);
@@ -80,23 +75,23 @@ void readPartInfoFromData(const string& dataFile, int& n)
 	fclose(fd);
 }
 
-void readInfoFromDatas()
-{
-	readPartInfoFromData(DataFile1, N1);
-	readPartInfoFromData(DataFile2, N2);
-}
+//void readInfoFromDatas()
+//{
+//	readPartInfoFromData(DataFile, N);
+//}
 
 // level begin from 1
 string getClusterName(const string& preClusFile, int level)
 {
-	if (level == 1)
-	{
-		return preClusFile+"_1.txt";
-	}
-	else
-	{
-		return str(boost::format("%s_1_%d.txt") % preClusFile.c_str() % (level-1));
-	}
+	//if (level == 1)
+	//{
+	//	return preClusFile+"_1.txt";
+	//}
+	//else
+	//{
+	//	return str(boost::format("%s_1_%d.txt") % preClusFile.c_str() % (level-1));
+	//}
+	return str(boost::format("%s_%d.txt") % preClusFile.c_str() % level); 
 }
 
 void readInterLevelCluster(FILE* fc, int& curClusterId)
@@ -144,46 +139,38 @@ void readLastLevelCluster(FILE* fc, int begN, int n, int& begClus, int& nClus)
 
 void genWordsFile()
 {
-	readInfoFromDatas();
+	//readInfoFromDatas();
+	readPartInfoFromData(DataFile, N);
 
 	// put root, it has two sons
-	NonLeaves.push_back(Node());
-	NonLeaves[0].sons.push_back(1);
-	NonLeaves[0].sons.push_back(2);
-	int curClusterId = 3;
+	//NonLeaves.push_back(Node());
+	//NonLeaves[0].sons.push_back(1);
+	//NonLeaves[0].sons.push_back(2);
+	int curClusterId = 1;
 	// put non-leaves without calculate k-means center
 	for (int l=1; l<=L; ++l)
 	{
 		// open cluster files
-		string clusFile1 = getClusterName(PreClusFile1, l);
-		FILE* fc1 = fopen(clusFile1.c_str(), "r");
-		if (fc1 == 0)
+		string clusFile = getClusterName(PreClusFile, l);
+		FILE* fc = fopen(clusFile.c_str(), "r");
+		if (fc == 0)
 		{
-			printf("Cannot open %s\n", clusFile1.c_str());
-			return;
-		}
-
-		string clusFile2 = getClusterName(PreClusFile2, l);
-		FILE* fc2 = fopen(clusFile2.c_str(), "r");
-		if (fc2 == 0)
-		{
-			printf("Cannot open %s\n", clusFile2.c_str());
+			printf("Cannot open %s\n", clusFile.c_str());
 			return;
 		}
 
 		// read cluster information
-		readInterLevelCluster(fc1, curClusterId);
-		readInterLevelCluster(fc2, curClusterId);
+		readInterLevelCluster(fc, curClusterId);
 
 		if (l == L)
 		{
-			readLastLevelCluster(fc1, 0, N1, BegClus1, NClus1);
-			readLastLevelCluster(fc2, N1, N2, BegClus2, NClus2);
+			readLastLevelCluster(fc, 0, N, BegClus, NClus);
+			//readLastLevelCluster(fc2, N1, N2, BegClus2, NClus2);
 		}
 
 
-		fclose(fc1);
-		fclose(fc2);
+		fclose(fc);
+		//fclose(fc2);
 	}
 	
 }
@@ -243,14 +230,14 @@ void calcPartClusCenters(const string& dataFile, int begClus, int nClus, int beg
 
 void calcClusCenters()
 {
-	printf("begin calculate part1 leaf nodes...\n");
-	calcPartClusCenters(DataFile1, BegClus1, NClus1, 0, N1);
+	printf("begin calculate leaf nodes...\n");
+	calcPartClusCenters(DataFile, BegClus, NClus, 0, N);
 
-	printf("begin calculate part2 leaf nodes...\n");
-	calcPartClusCenters(DataFile2, BegClus2, NClus2, N1, N2);
+	//printf("begin calculate part2 leaf nodes...\n");
+	//calcPartClusCenters(DataFile2, BegClus2, NClus2, N1, N2);
 
 	printf("Begin calculate non-leaf nodes...\n");
-	for (int i=BegClus1-1; i>=0; --i)
+	for (int i=BegClus-1; i>=0; --i)
 	{
 		NonLeaves[i].center = new float[Dim];
 		fill(NonLeaves[i].center, NonLeaves[i].center+Dim, 0.0f);
@@ -280,7 +267,7 @@ void printWordsFile()
 		return;
 	}
 
-	fprintf(fw, "%d %d %d %d\n", N1+N2, NonLeaves.size(), NClus1+NClus2, Dim);
+	fprintf(fw, "%d %d %d %d\n", N, NonLeaves.size(), NClus, Dim);
 	for (int i=0; i<NonLeaves.size(); ++i)
 	{
 		fprintf(fw, "%d %d %d ", i, NonLeaves[i].npoints, NonLeaves[i].sons.size());
@@ -313,10 +300,8 @@ int main(int argc, char* argv[])
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message.")
-		("siftdata1,b", po::value<string>(&DataFile1), "part 1 of sift data.")
-		("siftdata2,d", po::value<string>(&DataFile2), "part 2 of sift data.")
-		("clusdata1,c", po::value<string>(&PreClusFile1), "prefix of part 1 of cluster files.")
-		("clusdata2,f", po::value<string>(&PreClusFile2), "prefix of part 2 of cluster files.")
+		("siftdata,d", po::value<string>(&DataFile), "sift data.")
+		("clusdata,c", po::value<string>(&PreClusFile), "prefix of cluster files.")
 		("result,r", po::value<string>(&WordsFile), "sift visual words index file.")
 		("level,v", po::value<int>(&L)->default_value(5), "the max level of current hierarchy k-means.")
 		;
@@ -324,8 +309,8 @@ int main(int argc, char* argv[])
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
-	if (vm.count("help") > 0 || vm.count("siftdata1") == 0 || vm.count("siftdata2") == 0
-		|| vm.count("clusdata1") == 0 || vm.count("clusdata2") == 0 || vm.count("result") == 0)
+	if (vm.count("help") > 0 || vm.count("siftdata") == 0
+		|| vm.count("clusdata") == 0  || vm.count("result") == 0)
 	{
 		cout << desc;
 		return 1;

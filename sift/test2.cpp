@@ -32,6 +32,8 @@ int main(int argc, char* argv[])
 	double contrWeight;
 	int maxNkps;
 	int lessLog;
+	int maxw;
+	int maxh;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "produce help message.")
@@ -45,6 +47,8 @@ int main(int argc, char* argv[])
 		("rpc,p", po::value<double>(&curThr)->default_value(10), "ratio of principal curvatures.")
 		("contrw,w", po::value<double>(&contrWeight)->default_value(1), "weight of contract, should be in [0,1].")
 		("max,m", po::value<int>(&maxNkps)->default_value(3000), "max keypoints per image.")
+		("maxw,x", po::value<int>(&maxw)->default_value(640), "max width of image, larger image will be downsized.")
+		("maxh,y", po::value<int>(&maxh)->default_value(640), "max height of image, larger image will be downsized.")
 		("lesslog,g", po::value<int>(&lessLog)->default_value(1), "log less information, or it will be as large as rawsift.");
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -65,7 +69,7 @@ int main(int argc, char* argv[])
 
 	if (issift)
 	{
-		showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps, curThr, contrWeight);
+		showSift(ImgsFile.c_str(), SiftBinFile.c_str(), doubleImg, contrThr, maxNkps, curThr, contrWeight, maxw, maxh);
 	}
 	
 	printKeypoints(lessLog != 0);

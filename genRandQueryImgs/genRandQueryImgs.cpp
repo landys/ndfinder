@@ -14,20 +14,18 @@
 #include <ctime>
 #include <cmath>
 #include <functional>
-#include "../sift/siftfeat.h"
-#include "../sift/imgfeatures.h"
 using namespace std;
 namespace po = boost::program_options;
 
 string ImgsFile;
 string ResultFile;
 int Nc;
-// key - category type, value - image list
-map<string, deque<string> > Imgs;
-// 1, 2
-map<string, int > Types;
+// key - category type, value - image list(first-file id, second file name).
+map<string, deque<pair<int, string> > > Imgs;
+//// 1, 2
+//map<string, int > Types;
 
-int TypeBound = 4402;
+//int TypeBound = 4402;
 
 char buf[256];
 
@@ -65,19 +63,19 @@ void initQuery()
 	{
 		string fname = string(buf);
 		string type = getObjectTypeFromPath(fname);
-		if (Imgs.find(type) == Imgs.end())
-		{
-			Imgs[type] = deque<string>();
-			if (fid <= TypeBound)
-			{
-				Types[type] = 1;
-			}
-			else
-			{
-				Types[type] = 2;
-			}
-		}
-		Imgs[type].push_back(fname);
+		//if (Imgs.find(type) == Imgs.end())
+		//{
+		//	Imgs[type] = deque<string>();
+		//	if (fid <= TypeBound)
+		//	{
+		//		Types[type] = 1;
+		//	}
+		//	else
+		//	{
+		//		Types[type] = 2;
+		//	}
+		//}
+		Imgs[type].push_back(pair<int, string>(fid, fname));
 	}
 	fclose(fimg);
 	cout << "load image list finished." << endl;
@@ -86,7 +84,7 @@ void initQuery()
 void pickAndSaveQueryImgs()
 {
 	FILE* fre = fopen(ResultFile.c_str(), "w");
-	for (map<string, deque<string> >::const_iterator it=Imgs.begin(); it!=Imgs.end(); ++it)
+	for (map<string, deque<pair<int, string> > >::const_iterator it=Imgs.begin(); it!=Imgs.end(); ++it)
 	{
 		int n = it->second.size();
 		bool* flags = new bool[n];
@@ -113,7 +111,8 @@ void pickAndSaveQueryImgs()
 		{
 			if (flags[i])
 			{
-				fprintf(fre, "%d %s\n", Types[it->first], it->second[i].c_str());
+				//fprintf(fre, "%d %s\n", Types[it->first], it->second[i].c_str());
+				fprintf(fre, "%d %s\n", it->second[i].first, it->second[i].second.c_str());
 			}
 			
 		}

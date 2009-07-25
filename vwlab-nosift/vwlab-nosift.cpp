@@ -52,13 +52,15 @@ public:
 string InfoFile;
 string ImgsFile;
 string WordsFile;
-string ResultDir;
-string ResultFile;
-string LogFile;
+//string ResultDir;
+//string ResultFile;
+string ReDetailFile;
+//string LogFile;
 string QueryImgsFile;
 
-ofstream Log;
-ofstream Result;
+//ofstream Log;
+//ofstream Result;
+ofstream Detail;
 
 class ImageInfo
 {
@@ -86,52 +88,58 @@ int Dim;
 // the number of nodes to be watched.
 int NWatched;
 // query image list read from file, first - image id, second - image file name
-deque<pair<int, string> > QueryImgs1;
-// query image list read from file, first - image id, second - image file name
-deque<pair<int, string> > QueryImgs2;
+deque<pair<int, string> > QueryImgs;
 // partition id
-int PartId;
+//int PartId;
 // top k query
 int TopK;
 
-class Score
+/*class Score
 {
 public:
-	int correct;
-	int wrong;
-	float sumScore;
+	vector<int> correct;
+	vector<int> wrong;
+	vector<float> sumScore;
 	long sumSiftTime; // ms
 	long sumTotalTime; // ms
 
-	Score() : correct(0), wrong(0), sumScore(0.0f), sumSiftTime(0), sumTotalTime(0) {}
+	Score() : sumSiftTime(0), sumTotalTime(0) {}
 
-	void add(int correct, int wrong, float score, long siftTime, long totalTime)
+	void add(const vector<int>& correct, const vector<int>& wrong, const vector<float>& score, long siftTime, long totalTime)
 	{
-		this->correct += correct;
-		this->wrong += wrong;
-		this->sumScore += score;
+		int n = correct.size();
+		if (this->correct.size() < n)
+		{
+			this->correct.resize(n, 0);
+			this->wrong.resize(n, 0);
+			this->sumScore.resize(n, 0);
+		}
+		for (int i=0; i<n; ++i)
+		{
+			this->correct[i] += correct[i];
+			this->wrong[i] += wrong[i];
+			this->sumScore[i] += score[i];
+		}
+
 		this->sumSiftTime += siftTime;
 		this->sumTotalTime += totalTime;
 	}
 
 	// get average score of the category type
-	float score() const{ return (correct + wrong == 0) ? 0 : sumScore * TopK / (correct + wrong); }
+	float score(int i) const{ return (correct[i] + wrong[i] == 0) ? 0 : sumScore[i] * (i + 1) * 10 / (correct[i] + wrong[i]); }
 	long siftTime() const { return (correct + wrong == 0) ? 0 : sumSiftTime * TopK / (correct + wrong); }
 	long totalTime() const { return (correct + wrong == 0) ? 0 : sumTotalTime * TopK / (correct + wrong); }
 };
 // result scores, string-category type, score-score of category
 map<string, Score> Scores;
 
-int Interval = 20;
+int Interval = 20;*/
 
-float Wis[4] = {2.0, 1.5, 1.0, 0.5};
-float SumWi = (2.0 + 1.5 + 1.0 + 0.5) * 5;
-
-int DoubleImg = 1;
-double ContrThr = 0.03;
-int MaxNkps = 2500;
-double CurThr = 10;
-double ContrWeight = 0.6;
+//int DoubleImg = 1;
+//double ContrThr = 0.03;
+//int MaxNkps = 1000;
+//double CurThr = 10;
+//double ContrWeight = 0.6;
 
 char buf[256];
 char bigBuf[10240];
@@ -171,27 +179,28 @@ string getObjectCategoryFromPath(const string& fn)
 // the parameter fn should has the result. Face and Face_esay is the same type.
 string getObjectTypeFromPath(const string& fn)
 {
-	int i = fn.rfind('/');
-	if (i == -1)
-	{
-		i = fn.rfind('\\');
-	}
+	return getObjectCategoryFromPath(fn);
+	//int i = fn.rfind('/');
+	//if (i == -1)
+	//{
+	//	i = fn.rfind('\\');
+	//}
 
-	int j = fn.rfind('/', i-1);
-	if (j == -1)
-	{
-		j = fn.rfind('\\', i-1);
-	}
+	//int j = fn.rfind('/', i-1);
+	//if (j == -1)
+	//{
+	//	j = fn.rfind('\\', i-1);
+	//}
 
-	string re = fn.substr(j+1, i-j-1);
+	//string re = fn.substr(j+1, i-j-1);
 
-	i = re.find('_');
-	if (i != -1)
-	{
-		re = re.substr(0, i);
-	}
+	//i = re.find('_');
+	//if (i != -1)
+	//{
+	//	re = re.substr(0, i);
+	//}
 
-	return re;
+	//return re;
 }
 
 string getFileNameNoExt(const string& fn)
@@ -309,17 +318,9 @@ void initQuery()
 
 	// read query image file
 	FILE* fq = fopen(QueryImgsFile.c_str(), "r");
-	int type;
-	while (fscanf(fimg, "%d %d %s", &type, &id, buf) != EOF)
+	while (fscanf(fimg, "%d %s", &id, buf) != EOF)
 	{
-		if (type == 1)
-		{
-			QueryImgs1.push_back(pair<int, string>(id, string(buf)));
-		}
-		else
-		{
-			QueryImgs2.push_back(pair<int, string>(id, string(buf)));
-		}
+		QueryImgs.push_back(pair<int, string>(id, string(buf)));
 	}
 	fclose(fq);
 	cout << "load query image list finished." << endl;
@@ -334,62 +335,79 @@ void releaseMemory()
 	}
 }
 
-float calcEud2(double* a, float* b)
-{
-	float sum = 0.0f;
-	for (int i=0; i<Dim; ++i)
-	{
-		sum += (a[i] - b[i]) * (a[i] - b[i]);
-	}
-	return sum;
-}
+//float calcEud2(double* a, float* b)
+//{
+//	float sum = 0.0f;
+//	for (int i=0; i<Dim; ++i)
+//	{
+//		sum += (a[i] - b[i]) * (a[i] - b[i]);
+//	}
+//	return sum;
+//}
 
 // return the index of the real cluster
-int queryKeypoint(double* desc, int curN)
-{
-	int begLeaf = NNodes - RealNNodes;
+//int queryKeypoint(double* desc, int curN)
+//{
+//	int begLeaf = NNodes - RealNNodes;
+//
+//	while (curN < begLeaf)
+//	{
+//		int nid = 0;
+//		float dist = std::numeric_limits<float>::max();
+//		for (int i=NonLeaves[curN].sons[0].first; i<=NonLeaves[curN].sons[1].first; ++i)
+//		{
+//			float d = calcEud2(desc, NonLeaves[i].center);
+//			if (d < dist)
+//			{
+//				nid = i;
+//				dist = d;
+//			}
+//		}
+//		curN = nid;
+//	}
+//
+//	return curN;
+//}
 
-	while (curN < begLeaf)
-	{
-		int nid = 0;
-		float dist = std::numeric_limits<float>::max();
-		for (int i=NonLeaves[curN].sons[0].first; i<=NonLeaves[curN].sons[1].first; ++i)
-		{
-			float d = calcEud2(desc, NonLeaves[i].center);
-			if (d < dist)
-			{
-				nid = i;
-				dist = d;
-			}
-		}
-		curN = nid;
-	}
+//void copyFile(const string& src, const string& des)
+//{
+//	FILE* fs = fopen(src.c_str(), "rb");
+//	FILE* fd = fopen(des.c_str(), "wb");
+//	while (true)
+//	{
+//		int w = fread(bigBuf, sizeof(char), 10240, fs);
+//		if (w > 0)
+//		{
+//			fwrite(bigBuf, sizeof(char), 10240, fd);
+//		}
+//		if (w < 10240)
+//		{
+//			break;
+//		}
+//	}
+//	fclose(fs);
+//	fclose(fd);
+//}
 
-	return curN;
-}
+//
+//const int ScoreL = 4;
+//float Wis[ScoreL] = {2.0, 1.5, 1.0, 0.5};
+//const float SumWi = 2.0 + 1.5 + 1.0 + 0.5;
 
-void copyFile(const string& src, const string& des)
-{
-	FILE* fs = fopen(src.c_str(), "rb");
-	FILE* fd = fopen(des.c_str(), "wb");
-	while (true)
-	{
-		int w = fread(bigBuf, sizeof(char), 10240, fs);
-		if (w > 0)
-		{
-			fwrite(bigBuf, sizeof(char), 10240, fd);
-		}
-		if (w < 10240)
-		{
-			break;
-		}
-	}
-	fclose(fs);
-	fclose(fd);
-}
+// order - begin from 1, k - topk.
+//float calcScore(int order, int k)
+//{
+//	int t = k / ScoreL;
+//	return Wis[((order - 1) / t) % ScoreL];
+//}
+//
+//float calcSumWi(int k)
+//{
+//	int t = k / ScoreL;
+//	return SumWi * t + Wis[ScoreL-1] * (k - t * ScoreL);
+//}
 
-
-void queryOneImg(int imgId, const string& imgfile, int type)
+void queryOneImg(int imgId, const string& imgfile)
 {
 	printf("Query %s...\n", imgfile.c_str());
 	long time1 = clock();
@@ -458,38 +476,64 @@ void queryOneImg(int imgId, const string& imgfile, int type)
 		}
 	}
 	long time3 = clock();
+	
+	Detail << boost::format("%d %d") % imgId % pq.size();
 
 	// calculate scores
-	string qt = getObjectTypeFromPath(imgfile);
-	int correct = 0;
-	int wrong = 0;
-	float score = 0.0f;
+	//string qt = getObjectTypeFromPath(imgfile);
+	//int nScore = TopK / 10;
+	//vector<int> correct(nScore, 0);
+	//vector<int> wrong(nScore, 0);
+	//vector<float> score(nScore, 0.0f);
 	while (!pq.empty())
 	{
 		pair<float, int> p = pq.top();
-		string rt = getObjectTypeFromPath(ImgInfos[p.second].fname);
-		if (qt == rt)
-		{
-			++correct;
-			score += Wis[(pq.size() - 1) / 5];
-		}
-		else
-		{
-			++wrong;
-		}
+		Detail << boost::format(" %d %f") % p.second % p.first;
+		//string rt = getObjectTypeFromPath(ImgInfos[p.second].fname);
+		//int order = pq.size();
+		//if (qt == rt)
+		//{
+		//	// calculate a list of scores from 10, 20, ..., TopK
+		//	for (int i=0; i<nScore; ++i)
+		//	{
+		//		int k = (i + 1) * 10;
+		//		if (order <= k)
+		//		{
+		//			++correct[i];
+		//			score[i] += calcScore(order, k);
+		//		}
+		//	}
+		//}
+		//else
+		//{
+		//	for (int i=0; i<nScore; ++i)
+		//	{
+		//		int k = (i + 1) * 10;
+		//		if (order <= k)
+		//		{
+		//			++wrong[i];
+		//		}
+		//	}
+		//}
 
 		pq.pop();
 	}
-	score /= SumWi;
+	Detail << endl;
 
-	string category = getObjectCategoryFromPath(imgfile);
-	if (Scores.find(category) == Scores.end())
-	{
-		Scores[category] = Score();
-	}
-	Scores[category].add(correct, wrong, score, time2-time1, time3-time1);
+	//for (int i=0; i<nScore; ++i)
+	//{
+	//	int k = (i + 1) * 10;
+	//	score /= calcSumWi(k);
+	//}
 
-	Log << boost::format("%s %d %d %f %ld %ld %ld") % imgfile.c_str() % correct % wrong % score % (time3-time1) % (time2-time1) % (time3-time2) << endl;
+	//string category = getObjectCategoryFromPath(imgfile);
+	////if (Scores.find(category) == Scores.end())
+	////{
+	////	Scores[category] = Score();
+	////}
+	//Scores[category].add(correct, wrong, score, time2-time1, time3-time1);
+
+	//Log << boost::format("%s %d %d %f %ld %ld %ld") % imgfile.c_str() % correct % wrong % score % (time3-time1) % (time2-time1) % (time3-time2) << endl;
 
 	//delete[] wids;
 	//delete[] tfidfs;
@@ -498,25 +542,21 @@ void queryOneImg(int imgId, const string& imgfile, int type)
 
 void queryLab()
 {
-	for (int i=0; i<QueryImgs1.size(); ++i)
+	for (int i=0; i<QueryImgs.size(); ++i)
 	{
-		queryOneImg(QueryImgs1[i].first, QueryImgs1[i].second, 1);
+		queryOneImg(QueryImgs[i].first, QueryImgs[i].second);
 	}
 
-	for (int i=0; i<QueryImgs2.size(); ++i)
-	{
-		queryOneImg(QueryImgs2[i].first, QueryImgs2[i].second, 2);
-	}
 
-	for (map<string, Score>::const_iterator it=Scores.begin(); it!=Scores.end(); ++it)
-	{
-		int correct = it->second.correct;
-		int wrong = it->second.wrong;
-		float score = it->second.score();
-		long siftTime = it->second.siftTime();
-		long totalTime = it->second.totalTime();
-		Result << boost::format("%s %d %d %f %ld %ld %ld") % it->first % correct % wrong % score % totalTime % siftTime % (totalTime-siftTime) << endl;
-	}
+	//for (map<string, Score>::const_iterator it=Scores.begin(); it!=Scores.end(); ++it)
+	//{
+	//	int correct = it->second.correct;
+	//	int wrong = it->second.wrong;
+	//	float score = it->second.score();
+	//	long siftTime = it->second.siftTime();
+	//	long totalTime = it->second.totalTime();
+	//	Result << boost::format("%s %d %d %f %ld %ld %ld") % it->first % correct % wrong % score % totalTime % siftTime % (totalTime-siftTime) << endl;
+	//}
 }
 
 
@@ -530,26 +570,29 @@ int main(int argc, char* argv[])
 		("datamap,m", po::value<string>(&InfoFile), "the map file between pictures and their keypoints.")
 		("imgslist,a", po::value<string>(&ImgsFile), "the map file between pictures and their ids.")
 		("wordfile,w", po::value<string>(&WordsFile), "sift visual words index file containing TF/IDF weight.")
-		("resultFile,r", po::value<string>(&ResultFile), "result directory.")
-		("logfile,l", po::value<string>(&LogFile), "log file.")
-		("topk,k", po::value<int>(&TopK)->default_value(20), "top k results")
-		("maxn,n", po::value<int>(&MaxNkps)->default_value(600), "max n")
+		//("resultFile,r", po::value<string>(&ResultFile), "result directory.")
+		("resultDetail,v", po::value<string>(&ReDetailFile), "result detail: matched image ids of each query images.")
+		//("logfile,l", po::value<string>(&LogFile), "log file.")
+		("topk,k", po::value<int>(&TopK)->default_value(50), "top k results")
+		//("maxn,n", po::value<int>(&MaxNkps)->default_value(1000), "max n")
 		;
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
 	if (vm.count("help") > 0 || vm.count("queryimgs") == 0 || vm.count("datamap") == 0 || vm.count("imgslist") == 0
-		|| vm.count("wordfile") == 0 || vm.count("resultFile") == 0 || vm.count("logfile") == 0)
+		|| vm.count("wordfile") == 0 || vm.count("resultDetail") == 0)
 	{
 		cout << desc;
 		return 1;
 	}
 
-	Log.open(LogFile.c_str(), ios_base::app);
-	Result.open(ResultFile.c_str());
-	Log << "filename correct wrong score total_time sift_time query_time" << endl;
-	Result << "category correct wrong score total_time sift_time query_time" << endl;
+	//Log.open(LogFile.c_str());
+	//Result.open(ResultFile.c_str());
+	//int nScore = TopK / 10;
+	//Log << "filename correct wrong score total_time sift_time query_time" << endl;
+	//Result << "category correct wrong score total_time sift_time query_time" << endl;
+	Detail.open(ReDetailFile.c_str());
 
 	initQuery();
 
@@ -558,7 +601,8 @@ int main(int argc, char* argv[])
 
 	releaseMemory();
 
-	Log.close();
-	Result.close();
+	//Log.close();
+	//Result.close();
+	Detail.close();
 	return 0;
 }

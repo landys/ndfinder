@@ -67,7 +67,7 @@
 			<DebugSettings
 				Command="$(TargetPath)"
 				WorkingDirectory=""
-				CommandArguments="-d E:\testsift\oc101\oc101_w6_n2500_p1.sift.data -p E:\testsift\oc101\oc101_w6_n2500_p1_clusters_k6_1.txt -r E:\testsift\oc101\oc101_w6_n2500_p1_clusters_k6_1 -n 0 -k 10 -v 1"
+				CommandArguments="-d E:\testsift\oc256\sift_w6_n1500\oc256_1_43.sift.data -r E:\testsift\oc256\sift_w6_n1500\words_100000\oc256_1_43_clus -n 0 -k 10 -v 5 -i 200 -a 30 -e 50"
 				Attach="false"
 				DebuggerType="3"
 				Remote="1"
